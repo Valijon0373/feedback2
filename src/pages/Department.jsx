@@ -88,13 +88,14 @@ export default function Department({ id, navigate }) {
                 onClick={() => navigate("teacher", teacher.id)}
                 className="card cursor-pointer hover:shadow-lg transition-all space-y-3"
               >
-                {teacher.image && (
+                <div className="w-full h-56 rounded-lg mb-4 overflow-hidden bg-slate-100 flex items-center justify-center">
                   <img
                     src={teacher.image || "/placeholder.svg"}
                     alt={teacher.name}
-                    className="w-full h-48 object-cover rounded-lg mb-4"
+                    className="w-full h-full object-contain"
+                    loading="lazy"
                   />
-                )}
+                </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">{teacher.name}</h3>
                   <p className="text-sm text-blue-600">{teacher.title}</p>

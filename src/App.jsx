@@ -10,8 +10,8 @@ import Faculty from "./pages/Faculty"
 import Department from "./pages/Department"
 import Teachers from "./pages/Teachers"
 import Teacher from "./pages/Teacher"
-import AdminLogin from "./pages/AdminLogin"
-import AdminDashboard from "./pages/AdminDashboard"
+import AdminLogin from "./pages/admindashboard/AdminLogin"
+import AdminDashboard from "./pages/admindashboard/AdminDashboard"
 
 const getPathForPage = (page, id) => {
   switch (page) {

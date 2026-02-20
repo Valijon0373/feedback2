@@ -149,7 +149,7 @@ export default function Home({ navigate }) {
       <div className="relative z-10">
       <div className="mb-12 pt-32 text-center">
         <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-lg">Xush Kelibsiz UrSPI ning</h1>
-        <p className="text-xl text-white/90 drop-shadow-md">O'qituvchilarni baholash tizimi</p>
+        <p className="text-xl text-white/90 drop-shadow-md">O'qituvchilarni baholash tizimiga!</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">

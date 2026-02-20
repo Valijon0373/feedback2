@@ -5,7 +5,6 @@ import { CheckCircle, X } from "lucide-react"
 import { supabase } from "../lib/supabase"
 
 const SCORE_FIELDS = [
-  { key: "overall", label: "Umumiy" },
   { key: "teaching", label: "O'qitish" },
   { key: "communication", label: "Muloqot" },
   { key: "knowledge", label: "Bilim" },
@@ -81,7 +80,11 @@ export default function TeacherProfile({ teacher, onBack, layout = "default" }) 
 
   const averages = useMemo(() => computeCategoryAverages(reviews), [reviews])
   const totalReviews = reviews.length
-  const overallRating = totalReviews ? formatRating(averages.overall || 0) : "0.0"
+  const overallRating = totalReviews
+    ? formatRating(
+        reviews.reduce((sum, review) => sum + Number(review.rating ?? review.scores?.overall ?? 0), 0) / totalReviews,
+      )
+    : "0.0"
   const qrSrc = getQrCodeSrc(teacher)
 
   useEffect(() => {
@@ -207,8 +210,8 @@ export default function TeacherProfile({ teacher, onBack, layout = "default" }) 
                 !
               </div>
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">Izoh talab qilinadi</h3>
-            <p className="text-slate-600 mb-6">Iltimos, o'qituvchi faoliyati haqida izoh qoldiring.</p>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Sharh talab qilinadi</h3>
+            <p className="text-slate-600 mb-6">Iltimos, o'qituvchi faoliyati haqida sharh qoldiring.</p>
             <button
               onClick={() => setShowCommentWarning(false)}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
@@ -258,7 +261,7 @@ export default function TeacherProfile({ teacher, onBack, layout = "default" }) 
               <p className="font-semibold">Shu bilan birga, quyidagi qoidalarga qat’iy amal qilishingizni so‘raymiz:</p>
               <ul className="list-disc pl-5 space-y-2">
                 <li>
-                  Haqoratli, mensimaslik, kamsitish, kulgi va shaxsga tegishli salbiy izohlar qoldirmang. Bunday mazmundagi
+                  Haqoratli, mensimaslik, kamsitish, kulgi va shaxsga tegishli salbiy sharhlar qoldirmang. Bunday mazmundagi
                   sharhlar moderatsiya tomonidan rad etiladi va hisobga olinmaydi.
                 </li>
                 <li>
@@ -276,7 +279,7 @@ export default function TeacherProfile({ teacher, onBack, layout = "default" }) 
                 xolis va mas’uliyat bilan yozilishi juda muhim.
               </p>
               <p>
-                Izohingizni yozayotganda unutmaying: sizning fikringiz, takliflaringiz va mulohazalaringiz o‘quv jarayonini
+                Sharhingizni yozayotganda unutmaying: sizning fikringiz, takliflaringiz va mulohazalaringiz o'quv jarayonini
                 yanada yaxshilashga yordam beradi. Shu boisdan iloji boricha aniq, tushunarli va foydali fikr bildiring.
               </p>
               <p>
@@ -362,7 +365,7 @@ export default function TeacherProfile({ teacher, onBack, layout = "default" }) 
             <p className="text-xs text-yellow-600 text-center">{totalReviews} ta sharh asosida</p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {SCORE_FIELDS.map(({ key, label }) => (
               <div key={key} className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-center">
                 <p className="text-xs text-slate-500">{label}</p>
@@ -382,8 +385,7 @@ export default function TeacherProfile({ teacher, onBack, layout = "default" }) 
       </div>
 
       <div className="card border border-slate-200">
-        <h2 className="text-xl font-bold text-slate-900 mb-2">O'qituvchi haqida sharh bering</h2>
-        <p className="text-sm text-slate-600 mb-6">Boshqa o'qituvchilar uchun foydali fikr qoldiring</p>
+        <h2 className="text-xl font-bold text-slate-900 mb-8">O'qituvchi haqida sharh bering</h2>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -417,7 +419,7 @@ export default function TeacherProfile({ teacher, onBack, layout = "default" }) 
             </div>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {SCORE_FIELDS.map(({ key, label }) => (
               <div key={key}>
                 <label className="block text-sm font-medium text-slate-900 mb-1">{label}</label>
@@ -437,7 +439,7 @@ export default function TeacherProfile({ teacher, onBack, layout = "default" }) 
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-900 mb-1">Izoh</label>
+            <label className="block text-sm font-medium text-slate-900 mb-1">Sharh</label>
             <textarea
               value={formState.comment}
               onChange={(event) => setFormState((prev) => ({ ...prev, comment: event.target.value }))}

@@ -80,9 +80,8 @@ export function ReviewForm({ teacherId, onReviewSubmitted }: ReviewFormProps) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-8">
         <CardTitle>O'qituvchi haqida sharh bering</CardTitle>
-        <CardDescription>Boshqa o'qituvchilar uchun foydali fikr qoldiring</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -140,7 +139,7 @@ export function ReviewForm({ teacherId, onReviewSubmitted }: ReviewFormProps) {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Izoh</label>
+            <label className="text-sm font-medium">Sharh</label>
             <Textarea
               placeholder="Fikringizni yozing..."
               value={formData.comment}

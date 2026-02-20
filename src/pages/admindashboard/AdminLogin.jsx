@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import logo from "../bg/urspi_new.png"
+import logo from "../../bg/urspi_new.png"
 import { XCircle, Eye, EyeOff } from "lucide-react"
 
 export default function AdminLogin({ navigate, setIsAdmin }) {

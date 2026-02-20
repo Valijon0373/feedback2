@@ -10,24 +10,58 @@ export default function Faculty({ id, navigate }) {
     const loadData = async () => {
       if (!id) return
       setLoading(true)
-      
-      const { data: facultyData } = await supabase
-        .from('faculties')
-        .select('*')
-        .eq('id', id)
-        .single()
-        
-      const { data: deptData } = await supabase
-        .from('departments')
-        .select('*')
-        .eq('facultyId', id)
 
-      if (facultyData) setFaculty(facultyData)
-      if (deptData) setDepartments(deptData)
-      
-      setLoading(false)
+      try {
+        // Bitta fakultet ma'lumotini Supabase'dan olish
+        const { data: facultyData, error: facultyError } = await supabase
+          .from("faculties")
+          .select("*")
+          .eq("id", id)
+          .single()
+
+        if (facultyError) {
+          console.error("Faculty fetch error:", facultyError)
+          setFaculty(null)
+        } else if (facultyData) {
+          setFaculty({
+            id: facultyData.id,
+            nameUz: facultyData.name_uz ?? facultyData.nameUz,
+            nameRu: facultyData.name_ru ?? facultyData.nameRu,
+            description: facultyData.description,
+          })
+        }
+
+        // Barcha kafedralarni olib, frontendda shu fakultetga tegishlilarini filtrlaymiz
+        const { data: departmentsData, error: deptError } = await supabase
+          .from("departments")
+          .select("*")
+
+        if (deptError) {
+          console.error("Departments by faculty fetch error:", deptError)
+          setDepartments([])
+        } else if (Array.isArray(departmentsData)) {
+          const filtered = departmentsData.filter((d) => {
+            const facultyId = d.faculty_id ?? d.facultyId
+            return facultyId === id
+          })
+
+          const normalizedDepartments = filtered.map((d) => ({
+            id: d.id,
+            nameUz: d.name_uz ?? d.nameUz,
+            nameRu: d.name_ru ?? d.nameRu,
+            head: d.head_name ?? d.head,
+          }))
+          setDepartments(normalizedDepartments)
+        }
+      } catch (error) {
+        console.error("Failed to load faculty data:", error)
+        setFaculty(null)
+        setDepartments([])
+      } finally {
+        setLoading(false)
+      }
     }
-    
+
     loadData()
   }, [id])
 

@@ -1,4 +1,3 @@
-"use client"
 import { useState, useEffect } from "react"
 import { supabase } from "../lib/supabase"
 
@@ -8,16 +7,43 @@ export default function Faculties({ navigate }) {
 
   useEffect(() => {
     const loadData = async () => {
-      const { data: f } = await supabase.from('faculties').select('*').order('id')
-      const { data: d } = await supabase.from('departments').select('facultyId')
-      
-      if (f) setFaculties(f)
-      if (d) {
-        const counts = {}
-        d.forEach(dept => {
-          counts[dept.facultyId] = (counts[dept.facultyId] || 0) + 1
-        })
-        setDepartmentCounts(counts)
+      try {
+        // Fakultetlar ro'yxatini Supabase'dan olish (ustun nomiga qattiq bog'lanmasdan)
+        const { data: facultiesData, error: facultiesError } = await supabase
+          .from("faculties")
+          .select("*")
+
+        if (facultiesError) {
+          console.error("Faculties fetch error:", facultiesError)
+        } else if (Array.isArray(facultiesData)) {
+          // DB dan keladigan snake_case maydonlarni UI uchun camelCase ga moslashtiramiz
+          const normalized = facultiesData.map((f) => ({
+            id: f.id,
+            nameUz: f.name_uz ?? f.nameUz,
+            nameRu: f.name_ru ?? f.nameRu,
+            description: f.description,
+          }))
+          setFaculties(normalized)
+        }
+
+        // Kafedralar sonini hisoblash uchun departments jadvalini o‘qiymiz
+        const { data: departmentsData, error: departmentsError } = await supabase
+          .from("departments")
+          .select("*")
+
+        if (departmentsError) {
+          console.error("Departments fetch error:", departmentsError)
+        } else if (Array.isArray(departmentsData)) {
+          const counts = {}
+          departmentsData.forEach((dept) => {
+            const facultyId = dept.faculty_id ?? dept.facultyId
+            if (!facultyId) return
+            counts[facultyId] = (counts[facultyId] || 0) + 1
+          })
+          setDepartmentCounts(counts)
+        }
+      } catch (error) {
+        console.error("Failed to load faculties data:", error)
       }
     }
     loadData()
@@ -29,6 +55,8 @@ export default function Faculties({ navigate }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {faculties.map((faculty) => {
+          const deptCount = departmentCounts[faculty.id] || 0
+
           return (
             <div
               key={faculty.id}
@@ -36,9 +64,11 @@ export default function Faculties({ navigate }) {
               className="card cursor-pointer hover:shadow-lg hover:border-blue-300 transition-all transform hover:-translate-y-1"
             >
               <h2 className="text-xl font-bold text-blue-600 mb-2">{faculty.nameUz}</h2>
-              <p className="text-sm text-slate-500 mb-4">{faculty.nameRu}</p>
+              {faculty.nameRu && (
+                <p className="text-sm text-slate-500 mb-4">{faculty.nameRu}</p>
+              )}
               <p className="text-sm text-slate-600">
-                <span className="font-medium">{departmentCounts[faculty.id] || 0}</span> ta kafedra
+                <span className="font-medium">{deptCount}</span> ta kafedra
               </p>
             </div>
           )
