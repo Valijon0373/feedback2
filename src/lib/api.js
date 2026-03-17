@@ -186,6 +186,21 @@ const hasAdminToken = () => {
   return !!(token && String(token).trim())
 }
 
+/**
+ * Try public call first (no Bearer), then retry with Bearer if available.
+ * Useful for endpoints that are public in some deployments but protected in others.
+ */
+const apiFetchPublicThenAuth = async (path, opts = {}) => {
+  try {
+    return await apiFetch(path, { ...(opts || {}), auth: false })
+  } catch (e) {
+    const status = e?.status
+    const canRetry = (status === 401 || status === 403 || status === 404) && hasAdminToken()
+    if (!canRetry) throw e
+    return await apiFetch(path, { ...(opts || {}), auth: true })
+  }
+}
+
 // In‑memory "database" (with optional localStorage persistence)
 const loadState = () => {
   if (typeof window === "undefined") return { ...initialMockData }
@@ -726,9 +741,18 @@ export const reviewsApi = {
         ? Number(fb.midScore)
         : Number(((Number(ball1 || 0) + Number(ball2 || 0) + Number(ball3 || 0) + Number(ball4 || 0)) / 4).toFixed(1))
 
+    const teacherName =
+      fb.teacherFullName ??
+      fb.teacherName ??
+      fb.teacher_full_name ??
+      fb.teacher?.fullName ??
+      fb.teacher?.name ??
+      ""
+
     return {
       id: fb.id ?? fb.feedBackId ?? fb.feedbackId,
       teacherId: teacherId ?? fb.teacherId ?? fb.teacher_id,
+      teacherName,
       studentName: fb.name ?? fb.studentName ?? fb.student_name ?? (anonymous ? "Anonim talaba" : ""),
       anonymous,
       comment: fb.comment ?? fb.text ?? "",
@@ -775,13 +799,30 @@ export const reviewsApi = {
   getByTeacherId: async (teacherId) => {
     const local = state.reviews.filter((r) => Number(r.teacherId) === Number(teacherId))
     try {
-      const data = await apiFetchPublicThenAuth(`/api/feedbacks/teacher/${teacherId}`, {
-        method: "GET",
-      })
-      const list = unwrapList(data)
-      if (list) return list.map((x) => reviewsApi._normalize(x, { teacherId }))
-      if (Array.isArray(data?.feedbacks)) return data.feedbacks
-      return Array.isArray(data) ? data : local
+      // Some backends expose public feedback list as:
+      // GET /api/view/teachers/{teachersId}/feedbacks   (Swagger screenshot)
+      // Others expose (often protected):
+      // GET /api/feedbacks/teacher/{teacherId}
+      const candidates = [
+        `/api/view/teachers/${encodeURIComponent(String(teacherId))}/feedbacks`,
+        `/api/feedbacks/teacher/${encodeURIComponent(String(teacherId))}`,
+      ]
+
+      let lastErr = null
+      for (const path of candidates) {
+        try {
+          const data = await apiFetchPublicThenAuth(path, { method: "GET" })
+          const list = unwrapList(data)
+          if (list) return list.map((x) => reviewsApi._normalize(x, { teacherId }))
+          if (Array.isArray(data?.feedbacks)) return data.feedbacks.map((x) => reviewsApi._normalize(x, { teacherId }))
+          if (Array.isArray(data)) return data.map((x) => reviewsApi._normalize(x, { teacherId }))
+        } catch (e) {
+          lastErr = e
+        }
+      }
+
+      if (lastErr) throw lastErr
+      return local
     } catch {
       return local
     }
