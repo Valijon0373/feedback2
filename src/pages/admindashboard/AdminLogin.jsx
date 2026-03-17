@@ -3,34 +3,56 @@
 import { useState, useEffect } from "react"
 import logo from "../../bg/urspi_new.png"
 import { XCircle, Eye, EyeOff } from "lucide-react"
+import { authApi } from "../../lib/api"
 
 export default function AdminLogin({ navigate, setIsAdmin }) {
   const [credentials, setCredentials] = useState({
-    email: "",
+    username: "",
     password: "",
   })
   const [showError, setShowError] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
   const [showPassword, setShowPassword] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const adminEmail = "admin@urspi.uz"
-  const adminPassword = "Admin123!"
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
 
-    if (credentials.email === adminEmail && credentials.password === adminPassword) {
-      localStorage.setItem(
-        "adminSession",
-        JSON.stringify({
-          email: credentials.email,
-          loginTime: new Date().toISOString(),
-        }),
-      )
+    try {
+      setIsSubmitting(true)
+      setShowError(false)
+      setErrorMessage("")
+
+      await authApi.login({
+        username: credentials.username,
+        password: credentials.password,
+      })
+
+      const loginTime = new Date().toISOString()
+
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem(
+            "adminSession",
+            JSON.stringify({
+              username: credentials.username,
+              loginTime,
+            }),
+          )
+        } catch (err) {
+          console.error("Failed to persist admin auth:", err)
+        }
+      }
+
       setIsAdmin(true)
       navigate("admin")
-    } else {
+    } catch (error) {
+      console.error("Admin login failed:", error)
+      setErrorMessage(error?.message || "Login yoki Parol noto'g'ri!")
       setShowError(true)
       setTimeout(() => setShowError(false), 3000)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -43,7 +65,9 @@ export default function AdminLogin({ navigate, setIsAdmin }) {
             <XCircle className="w-6 h-6 text-red-500" />
             <div>
               <h3 className="font-bold text-sm">Xatolik</h3>
-              <p className="text-sm">Login yoki Parol noto'g'ri!</p>
+              <p className="text-sm">
+                {errorMessage || "Login yoki Parol noto'g'ri!"}
+              </p>
             </div>
             <button 
               onClick={() => setShowError(false)}
@@ -66,9 +90,9 @@ export default function AdminLogin({ navigate, setIsAdmin }) {
           <div>
             <label className="block text-sm font-medium text-slate-900 mb-1">Login</label>
             <input
-              type="email"
-              value={credentials.email}
-              onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
+              type="text"
+              value={credentials.username}
+              onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
               placeholder="Loginni kiriting"
             />
@@ -92,8 +116,8 @@ export default function AdminLogin({ navigate, setIsAdmin }) {
               </button>
             </div>
           </div>
-          <button type="submit" className="btn btn-primary w-full">
-            Kirish
+          <button type="submit" className="btn btn-primary w-full" disabled={isSubmitting}>
+            {isSubmitting ? "Kirilmoqda..." : "Kirish"}
           </button>
         </form>
 {/* 

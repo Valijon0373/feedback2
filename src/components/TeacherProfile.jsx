@@ -1,14 +1,14 @@
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
-import { CheckCircle, X } from "lucide-react"
-import { supabase } from "../lib/supabase"
+import { CheckCircle, X, Mail, Landmark } from "lucide-react"
+import { reviewsApi, buildImageUrl } from "../lib/api"
 
 const SCORE_FIELDS = [
-  { key: "teaching", label: "O'qitish" },
-  { key: "communication", label: "Muloqot" },
-  { key: "knowledge", label: "Bilim" },
-  { key: "engagement", label: "Yaqinlik" },
+  { key: "knowledge", label: "Kasbiy kompetensiya" },
+  { key: "teaching", label: "O'qitish samaradorligi" },
+  { key: "communication", label: "Muloqot madaniyati" },
+  { key: "engagement", label: "Talabalarga munosabati" },
 ]
 
 const createDefaultScores = () =>
@@ -60,10 +60,14 @@ const formatDate = (dateString) => {
     .replace(",", "")
 }
 
+// https://feedback.urspi.uz/teacher/teacher_id
+
 const getQrCodeSrc = (teacher) => {
-  if (!teacher?.qrData) return "/placeholder.svg"
-  return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(teacher.qrData)}`
+  if (!teacher?.id) return "/placeholder.svg"
+  let url = `https://feedback.urspi.uz/teacher/${teacher.id}`
+  return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(url)}`
 }
+
 
 export default function TeacherProfile({ teacher, onBack, layout = "default" }) {
   const [reviews, setReviews] = useState([])
@@ -88,17 +92,24 @@ export default function TeacherProfile({ teacher, onBack, layout = "default" }) 
   const qrSrc = getQrCodeSrc(teacher)
 
   useEffect(() => {
+    let cancelled = false
+
     const loadReviews = async () => {
-      const { data } = await supabase
-        .from('reviews')
-        .select('*')
-        .eq('teacherId', teacher.id)
-        .eq('isActive', true)
-        .order('date', { ascending: false })
-      
-      if (data) setReviews(data)
+      try {
+        const byTeacher = await reviewsApi.getByTeacherId(teacher.id)
+        const list = (Array.isArray(byTeacher) ? byTeacher : [])
+          .filter((review) => review.isActive !== false)
+          .sort((a, b) => new Date(b.date || b.created_at || 0) - new Date(a.date || a.created_at || 0))
+        if (!cancelled) setReviews(list)
+      } catch (_) {
+        if (!cancelled) setReviews([])
+      }
     }
+
     loadReviews()
+    return () => {
+      cancelled = true
+    }
   }, [teacher.id])
 
   useEffect(() => {
@@ -139,23 +150,25 @@ export default function TeacherProfile({ teacher, onBack, layout = "default" }) 
     }
 
     try {
-        const { data, error } = await supabase.from('reviews').insert([newReview]).select()
-        
-        if (error) throw error
+      await reviewsApi.save(newReview)
 
-        if (data) {
-            setReviews((prev) => [data[0], ...prev])
-            setFormState({
-            studentName: "",
-            anonymous: false,
-            comment: "",
-            scores: createDefaultScores(),
-            })
-            setShowSuccessModal(true)
-        }
+      // Reload to reflect server-side id/created_at fields
+      const byTeacher = await reviewsApi.getByTeacherId(teacher.id)
+      const list = (Array.isArray(byTeacher) ? byTeacher : [])
+        .filter((review) => review.isActive !== false)
+        .sort((a, b) => new Date(b.date || b.created_at || 0) - new Date(a.date || a.created_at || 0))
+      setReviews(list)
+
+      setFormState({
+        studentName: "",
+        anonymous: false,
+        comment: "",
+        scores: createDefaultScores(),
+      })
+      setShowSuccessModal(true)
     } catch (error) {
-        console.error("Error submitting review:", error)
-        alert(`Xatolik yuz berdi: ${error.message || "Noma'lum xatolik"}`)
+      console.error("Error submitting review:", error)
+      alert(`Xatolik yuz berdi: ${error.message || "Noma'lum xatolik"}`)
     }
   }
 
@@ -315,18 +328,30 @@ export default function TeacherProfile({ teacher, onBack, layout = "default" }) 
         <div className="card border border-slate-200">
           <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 mb-2">{teacher.name}</h1>
-              <p className="text-slate-600 mb-4">{teacher.specialization || teacher.title}</p>
+              <h1 className="text-2xl font-bold text-slate-900 mb-2">{teacher.fullName || teacher.name}</h1>
+              <p className="text-slate-600 mb-4 mt-4 flex items-center gap-2">
+                <Landmark className="w-4 h-4" />
+                <span className="font-semibold">Kafedra:</span>
+                <span>{teacher.department}</span>
+              </p>
 
               <div className="space-y-2 text-sm text-slate-600 mb-6">
                 {teacher.email && (
-                  <p>
-                    <span className="font-semibold text-slate-800">Email:</span> {teacher.email}
+                  <p className="flex items-center gap-2 whitespace-nowrap">
+                    <span className="font-semibold text-slate-800 inline-flex items-center gap-1">
+                      <Mail className="w-4 h-4" />
+                      E-mail:
+                    </span>
+                    <span>{teacher.email}</span>
                   </p>
                 )}
-                {teacher.phone && (
-                  <p>
-                    <span className="font-semibold text-slate-800">Telefon:</span> {teacher.phone}
+                {teacher.phone && !teacher.email && (
+                  <p className="flex items-center gap-2 whitespace-nowrap">
+                    <span className="font-semibold text-slate-800 inline-flex items-center gap-1">
+                      <Mail className="w-4 h-4" />
+                      E-mail:
+                    </span>
+                    <span>{teacher.phone}</span>
                   </p>
                 )}
                 {teacher.experience && (
@@ -336,15 +361,19 @@ export default function TeacherProfile({ teacher, onBack, layout = "default" }) 
                 )}
               </div>
 
-              {teacher.bio && <p className="text-sm text-slate-600 mb-6">{teacher.bio}</p>}
+              {/* Bio ma'lumotini vaqtincha ko'rsatmaymiz */}
             </div>
             
             {/* Teacher Image on Right Side */}
             <div className="flex flex-col items-center justify-start md:pl-6">
               <div className="w-48 h-48 rounded-xl overflow-hidden border-2 border-slate-200 shadow-md">
                 <img
-                  src={teacher.image || "/placeholder-user.jpg"}
-                  alt={teacher.name}
+                src={
+                  buildImageUrl(
+                    teacher.imageUrl || teacher.image || teacher.photo || teacher.avatar || "",
+                  ) || "/placeholder-user.jpg"
+                }
+                  alt={teacher.fullName || teacher.name}
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -377,7 +406,7 @@ export default function TeacherProfile({ teacher, onBack, layout = "default" }) 
 
         <div className="card border border-slate-200 flex flex-col items-center justify-center text-center gap-4">
           <h3 className="text-lg font-semibold text-slate-900">QR Kod</h3>
-          <img src={qrSrc} alt={`${teacher.name} QR`} className="w-40 h-40 object-contain rounded-lg border" />
+          <img src={qrSrc} alt={`${teacher.fullName || teacher.name} QR`} className="w-40 h-40 object-contain rounded-lg border" />
           <p className="text-xs text-slate-500 px-4">
             Ushbu kodni skaner qilib, o'qituvchi haqida tezda fikr bildirish yoki ma'lumotlarni yuklab olish mumkin.
           </p>

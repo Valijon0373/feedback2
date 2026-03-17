@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
-import { supabase } from "../lib/supabase"
+import { mockData } from "../data/mockData"
+import { facultiesApi, departmentsApi } from "../lib/api"
 
 export default function Faculty({ id, navigate }) {
   const [faculty, setFaculty] = useState(null)
@@ -12,47 +13,29 @@ export default function Faculty({ id, navigate }) {
       setLoading(true)
 
       try {
-        // Bitta fakultet ma'lumotini Supabase'dan olish
-        const { data: facultyData, error: facultyError } = await supabase
-          .from("faculties")
-          .select("*")
-          .eq("id", id)
-          .single()
+        const [facultyRes, facultiesRes, departmentsRes] = await Promise.allSettled([
+          facultiesApi.getById(id),
+          facultiesApi.getAll(),
+          departmentsApi.getAll(),
+        ])
 
-        if (facultyError) {
-          console.error("Faculty fetch error:", facultyError)
-          setFaculty(null)
-        } else if (facultyData) {
-          setFaculty({
-            id: facultyData.id,
-            nameUz: facultyData.name_uz ?? facultyData.nameUz,
-            nameRu: facultyData.name_ru ?? facultyData.nameRu,
-            description: facultyData.description,
-          })
+        let facultyData = facultyRes.status === "fulfilled" ? facultyRes.value : null
+        if (!facultyData) {
+          const facultiesData =
+            facultiesRes.status === "fulfilled" && Array.isArray(facultiesRes.value)
+              ? facultiesRes.value
+              : Array.isArray(mockData.faculties) ? mockData.faculties : []
+          facultyData = facultiesData.find((f) => Number(f.id) === Number(id)) || null
         }
 
-        // Barcha kafedralarni olib, frontendda shu fakultetga tegishlilarini filtrlaymiz
-        const { data: departmentsData, error: deptError } = await supabase
-          .from("departments")
-          .select("*")
+        setFaculty(facultyData || null)
 
-        if (deptError) {
-          console.error("Departments by faculty fetch error:", deptError)
-          setDepartments([])
-        } else if (Array.isArray(departmentsData)) {
-          const filtered = departmentsData.filter((d) => {
-            const facultyId = d.faculty_id ?? d.facultyId
-            return facultyId === id
-          })
-
-          const normalizedDepartments = filtered.map((d) => ({
-            id: d.id,
-            nameUz: d.name_uz ?? d.nameUz,
-            nameRu: d.name_ru ?? d.nameRu,
-            head: d.head_name ?? d.head,
-          }))
-          setDepartments(normalizedDepartments)
-        }
+        const departmentsData =
+          departmentsRes.status === "fulfilled" && Array.isArray(departmentsRes.value)
+            ? departmentsRes.value
+            : Array.isArray(mockData.departments) ? mockData.departments : []
+        const filtered = departmentsData.filter((d) => Number(d.facultyId) === Number(id))
+        setDepartments(filtered)
       } catch (error) {
         console.error("Failed to load faculty data:", error)
         setFaculty(null)

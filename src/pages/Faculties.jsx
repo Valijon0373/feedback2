@@ -1,53 +1,46 @@
 import { useState, useEffect } from "react"
-import { supabase } from "../lib/supabase"
+import { mockData } from "../data/mockData"
+import { facultiesApi, departmentsApi } from "../lib/api"
 
 export default function Faculties({ navigate }) {
   const [faculties, setFaculties] = useState([])
   const [departmentCounts, setDepartmentCounts] = useState({})
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const loadData = async () => {
+      setLoading(true)
       try {
-        // Fakultetlar ro'yxatini Supabase'dan olish (ustun nomiga qattiq bog'lanmasdan)
-        const { data: facultiesData, error: facultiesError } = await supabase
-          .from("faculties")
-          .select("*")
+        const [facultiesRes, departmentsRes] = await Promise.allSettled([
+          facultiesApi.getAll(),
+          departmentsApi.getAll(),
+        ])
+        const facultiesData =
+          facultiesRes.status === "fulfilled" && Array.isArray(facultiesRes.value)
+            ? facultiesRes.value
+            : Array.isArray(mockData.faculties) ? mockData.faculties : []
+        const departmentsData =
+          departmentsRes.status === "fulfilled" && Array.isArray(departmentsRes.value)
+            ? departmentsRes.value
+            : Array.isArray(mockData.departments) ? mockData.departments : []
 
-        if (facultiesError) {
-          console.error("Faculties fetch error:", facultiesError)
-        } else if (Array.isArray(facultiesData)) {
-          // DB dan keladigan snake_case maydonlarni UI uchun camelCase ga moslashtiramiz
-          const normalized = facultiesData.map((f) => ({
-            id: f.id,
-            nameUz: f.name_uz ?? f.nameUz,
-            nameRu: f.name_ru ?? f.nameRu,
-            description: f.description,
-          }))
-          setFaculties(normalized)
-        }
+        setFaculties(facultiesData)
 
-        // Kafedralar sonini hisoblash uchun departments jadvalini o‘qiymiz
-        const { data: departmentsData, error: departmentsError } = await supabase
-          .from("departments")
-          .select("*")
-
-        if (departmentsError) {
-          console.error("Departments fetch error:", departmentsError)
-        } else if (Array.isArray(departmentsData)) {
-          const counts = {}
-          departmentsData.forEach((dept) => {
-            const facultyId = dept.faculty_id ?? dept.facultyId
-            if (!facultyId) return
-            counts[facultyId] = (counts[facultyId] || 0) + 1
-          })
-          setDepartmentCounts(counts)
-        }
-      } catch (error) {
-        console.error("Failed to load faculties data:", error)
+        const counts = {}
+        departmentsData.forEach((dept) => {
+          const facultyId = dept.facultyId
+          if (!facultyId) return
+          counts[facultyId] = (counts[facultyId] || 0) + 1
+        })
+        setDepartmentCounts(counts)
+      } finally {
+        setLoading(false)
       }
     }
     loadData()
   }, [])
+
+  if (loading) return <div className="text-center text-slate-600 py-8">Yuklanmoqda...</div>
 
   return (
     <div>

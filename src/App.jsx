@@ -12,6 +12,20 @@ import Teachers from "./pages/Teachers"
 import Teacher from "./pages/Teacher"
 import AdminLogin from "./pages/admindashboard/AdminLogin"
 import AdminDashboard from "./pages/admindashboard/AdminDashboard"
+import { authApi } from "./lib/api"
+
+const hasValidAdminToken = () => {
+  if (typeof window === "undefined") return false
+  try {
+    const raw = window.localStorage.getItem("adminAuth")
+    if (!raw) return false
+    const auth = JSON.parse(raw)
+    const token = auth?.accessToken || auth?.access_token || auth?.token
+    return Boolean(token && String(token).trim())
+  } catch {
+    return false
+  }
+}
 
 const getPathForPage = (page, id) => {
   switch (page) {
@@ -73,20 +87,36 @@ function App() {
   const [selectedId, setSelectedId] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
 
+  const syncAdminState = (opts = {}) => {
+    if (typeof window === "undefined") return
+    const { redirectIfLoggedOut = false } = opts
+
+    const adminSession = window.localStorage.getItem("adminSession")
+    const hasToken = hasValidAdminToken()
+    const nextIsAdmin = Boolean(adminSession) && hasToken
+
+    if (!nextIsAdmin) {
+      try {
+        window.localStorage.removeItem("adminSession")
+      } catch (_) {}
+    }
+
+    setIsAdmin(nextIsAdmin)
+
+    if (redirectIfLoggedOut && !nextIsAdmin) {
+      setCurrentPage("admin-login")
+      setSelectedId(null)
+      try {
+        window.history.pushState(null, "", "/admin")
+      } catch (_) {}
+    }
+  }
+
   useEffect(() => {
     if (typeof window === "undefined") return
 
-    const adminSession = localStorage.getItem("adminSession")
-    let admin = Boolean(adminSession)
-
-    // Always force login when accessing /admin directly
-    // if (window.location.pathname === "/admin" || window.location.pathname === "/admin/") {
-    //   localStorage.removeItem("adminSession")
-    //   admin = false
-    // }
-
-    setIsAdmin(admin)
-
+    syncAdminState()
+    const admin = Boolean(window.localStorage.getItem("adminSession")) && hasValidAdminToken()
     const { page, id } = getStateFromPath(window.location.pathname, admin)
     setCurrentPage(page)
     setSelectedId(id)
@@ -105,8 +135,33 @@ function App() {
     return () => window.removeEventListener("popstate", handlePopState)
   }, [isAdmin])
 
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const onStorage = (e) => {
+      if (e?.key !== "adminAuth" && e?.key !== "adminSession") return
+      // If token/session disappears while we're in admin, force login UI.
+      syncAdminState({ redirectIfLoggedOut: window.location.pathname.startsWith("/admin") })
+    }
+
+    const onAuthChanged = () => {
+      syncAdminState({ redirectIfLoggedOut: window.location.pathname.startsWith("/admin") })
+    }
+
+    window.addEventListener("storage", onStorage)
+    window.addEventListener("admin-auth-changed", onAuthChanged)
+    return () => {
+      window.removeEventListener("storage", onStorage)
+      window.removeEventListener("admin-auth-changed", onAuthChanged)
+    }
+  }, [])
+
   const handleLogout = () => {
+    try {
+      authApi.logout()
+    } catch (_) {}
     localStorage.removeItem("adminSession")
+    localStorage.removeItem("adminAuth")
     setIsAdmin(false)
     setCurrentPage("home")
     if (typeof window !== "undefined") {

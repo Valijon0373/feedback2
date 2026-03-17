@@ -1,4 +1,5 @@
-import { Eye, Pencil, Plus, Trash2, X, Search, Download, Users } from "lucide-react"
+import { Eye, Pencil, Plus, Trash2, X, Search, Download, Users, Mail } from "lucide-react"
+import { buildImageUrl } from "../../lib/api"
 
 export default function TeachersTable({
   isDarkMode,
@@ -117,7 +118,11 @@ export default function TeachersTable({
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleAddOrUpdateTeacher} className="space-y-4">
+            <form
+              onSubmit={handleAddOrUpdateTeacher}
+              className="space-y-4"
+              encType="multipart/form-data"
+            >
               <div>
                 <label
                   className={`block text-sm font-medium mb-1 transition-colors duration-300 ${
@@ -128,8 +133,10 @@ export default function TeachersTable({
                 </label>
                 <input
                   type="text"
-                  value={teacherForm.name}
-                  onChange={(event) => setTeacherForm({ ...teacherForm, name: event.target.value })}
+                  value={teacherForm.fullName}
+                  onChange={(event) =>
+                    setTeacherForm({ ...teacherForm, fullName: event.target.value })
+                  }
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-[#00d4aa] transition-colors duration-300 ${
                     isDarkMode
                       ? "bg-[#0e1a22] border-[#1a2d3a] text-white"
@@ -147,8 +154,10 @@ export default function TeachersTable({
                   Lavozim <span className="text-red-500">*</span>
                 </label>
                 <select
-                  value={teacherForm.title}
-                  onChange={(event) => setTeacherForm({ ...teacherForm, title: event.target.value })}
+                  value={teacherForm.position}
+                  onChange={(event) =>
+                    setTeacherForm({ ...teacherForm, position: event.target.value })
+                  }
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-[#00d4aa] transition-colors duration-300 ${
                     isDarkMode
                       ? "bg-[#0e1a22] border-[#1a2d3a] text-white"
@@ -203,36 +212,43 @@ export default function TeachersTable({
                     isDarkMode ? "text-white" : "text-slate-900"
                   }`}
                 >
-                  Telefon <span className="text-red-500">*</span>
+                  Telefon raqam
                 </label>
                 <input
                   type="tel"
                   value={teacherForm.phone}
-                  onChange={(event) => {
-                    const value = event.target.value
-                    const digits = value.replace(/\D/g, "")
-                    let formatted = "+998"
-                    if (digits.length > 3) {
-                      formatted += " " + digits.slice(3, 5)
-                    }
-                    if (digits.length > 5) {
-                      formatted += " " + digits.slice(5, 8)
-                    }
-                    if (digits.length > 8) {
-                      formatted += " " + digits.slice(8, 10)
-                    }
-                    if (digits.length > 10) {
-                      formatted += " " + digits.slice(10, 12)
-                    }
-                    setTeacherForm({ ...teacherForm, phone: formatted })
-                  }}
+                  onChange={(event) =>
+                    setTeacherForm({ ...teacherForm, phone: event.target.value })
+                  }
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-[#00d4aa] transition-colors duration-300 ${
                     isDarkMode
                       ? "bg-[#0e1a22] border-[#1a2d3a] text-white"
                       : "bg-white border-slate-300 text-slate-900"
                   }`}
                   placeholder="+998 90 123 45 67"
-                  maxLength="17"
+                />
+              </div>
+              <div>
+                <label
+                  className={`block text-sm font-medium mb-1 
+                    transition-colors duration-300 ${
+                    isDarkMode ? "text-white" : "text-slate-900"
+                  }`}
+                >
+                  E-pochta <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={teacherForm.email}
+                  onChange={(event) =>
+                    setTeacherForm({ ...teacherForm, email: event.target.value })
+                  }
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-[#00d4aa] transition-colors duration-300 ${
+                    isDarkMode
+                      ? "bg-[#0e1a22] border-[#1a2d3a] text-white"
+                      : "bg-white border-slate-300 text-slate-900"
+                  }`}
+                  placeholder="example@gmail.com"
                 />
               </div>
               <div>
@@ -241,18 +257,20 @@ export default function TeachersTable({
                     isDarkMode ? "text-white" : "text-slate-900"
                   }`}
                 >
-                  QR uchun havola
+                  Qisqacha ma&apos;lumot (bio)
                 </label>
-                <input
-                  type="text"
-                  value={teacherForm.qrData}
-                  onChange={(event) => setTeacherForm({ ...teacherForm, qrData: event.target.value })}
+                <textarea
+                  value={teacherForm.bio}
+                  onChange={(event) =>
+                    setTeacherForm({ ...teacherForm, bio: event.target.value })
+                  }
+                  rows={3}
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-[#00d4aa] transition-colors duration-300 ${
                     isDarkMode
                       ? "bg-[#0e1a22] border-[#1a2d3a] text-white"
                       : "bg-white border-slate-300 text-slate-900"
                   }`}
-                  placeholder="https://..."
+                  placeholder="O'qituvchi haqida qisqacha ma'lumot"
                 />
               </div>
               <div>
@@ -385,11 +403,15 @@ export default function TeachersTable({
               .filter((teacher) => {
                 if (!teacherSearchTerm.trim()) return true
                 const query = teacherSearchTerm.toLowerCase()
+                const name = (teacher.fullName || teacher.name || "").toLowerCase()
+                const title = (teacher.position || teacher.title || "").toLowerCase()
+                const dept = (teacher.department || "").toLowerCase()
+                const spec = (teacher.specialization || "").toLowerCase()
                 return (
-                  teacher.name?.toLowerCase().includes(query) ||
-                  teacher.title?.toLowerCase().includes(query) ||
-                  teacher.specialization?.toLowerCase().includes(query) ||
-                  teacher.department?.toLowerCase().includes(query)
+                  name.includes(query) ||
+                  title.includes(query) ||
+                  spec.includes(query) ||
+                  dept.includes(query)
                 )
               })
               .map((teacher) => {
@@ -409,8 +431,16 @@ export default function TeachersTable({
                           className="w-24 h-24 rounded-full border-4 overflow-hidden bg-gray-200"
                           style={{ borderColor: isDarkMode ? "#14232c" : "#fff" }}
                         >
-                          {teacher.image ? (
-                            <img src={teacher.image} alt={teacher.name} className="w-full h-full object-cover" />
+                          {teacher.imageUrl || teacher.image || teacher.photo || teacher.avatar ? (
+                            <img
+                              src={
+                                buildImageUrl(
+                                  teacher.imageUrl || teacher.image || teacher.photo || teacher.avatar || "",
+                                ) || "/placeholder.svg"
+                              }
+                              alt={teacher.name}
+                              className="w-full h-full object-cover"
+                            />
                           ) : (
                             <div
                               className={`w-full h-full flex items-center justify-center ${
@@ -437,14 +467,14 @@ export default function TeachersTable({
                             isDarkMode ? "text-white" : "text-slate-900"
                           }`}
                         >
-                          {teacher.name}
+                          {teacher.fullName || teacher.name}
                         </h3>
                         <p
                           className={`text-sm transition-colors duration-300 ${
                             isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"
                           }`}
                         >
-                          {teacher.title || "O'qituvchi"}
+                          {teacher.position || teacher.title || "O'qituvchi"}
                         </p>
                       </div>
 
@@ -541,8 +571,16 @@ export default function TeachersTable({
 
             <div className="flex flex-col items-center mb-6">
               <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-[#00d4aa] mb-3">
-                {viewTeacher.image ? (
-                  <img src={viewTeacher.image} alt={viewTeacher.name} className="w-full h-full object-cover" />
+                {viewTeacher.imageUrl || viewTeacher.image || viewTeacher.photo || viewTeacher.avatar ? (
+                  <img
+                    src={
+                      buildImageUrl(
+                        viewTeacher.imageUrl || viewTeacher.image || viewTeacher.photo || viewTeacher.avatar || "",
+                      ) || "/placeholder.svg"
+                    }
+                    alt={viewTeacher.name}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
                   <div
                     className={`w-full h-full flex items-center justify-center ${
@@ -608,18 +646,19 @@ export default function TeachersTable({
               </div>
               <div>
                 <p
-                  className={`text-sm font-medium mb-1 ${
+                  className={`text-sm font-medium mb-1 flex items-center gap-2 ${
                     isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"
                   }`}
                 >
-                  Telefon:
-                </p>
-                <p
-                  className={`font-medium ${
-                    isDarkMode ? "text-white" : "text-slate-900"
-                  }`}
-                >
-                  {viewTeacher.phone}
+                  <Mail className="w-4 h-4" />
+                  <span>E-mail:</span>
+                    <span
+                      className={`font-medium ${
+                        isDarkMode ? "text-white" : "text-slate-900"
+                      }`}
+                    >
+                      {viewTeacher.email || viewTeacher.phone}
+                    </span>
                 </p>
               </div>
               <div>

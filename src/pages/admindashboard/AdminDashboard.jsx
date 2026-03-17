@@ -1,10 +1,12 @@
 import { useMemo, useState, useEffect, useRef } from "react"
-import { supabase } from "../../lib/supabase"
+import { mockData as initialMockData } from "../../data/mockData"
+import { facultiesApi, departmentsApi, teachersApi, reviewsApi, uploadApi } from "../../lib/api"
 import FacultiesTable from "./FacultiesTable"
 import DepartamentTable from "./DepartamentTable"
 import TeachersTable from "./TeachersTable"
 import CommentsTable from "./CommentsTable"
 import AboutUsjsx from "./AboutUs"
+// QRCode modal removed; QR is shown on public teacher cards instead.
 import {
   LayoutDashboard,
   Users,
@@ -31,20 +33,20 @@ import * as XLSX from "xlsx"
 
 const SCORE_FIELDS = [
   { key: "overall", label: "Umumiy" },
-  { key: "teaching", label: "O'qitish" },
-  { key: "communication", label: "Muloqot" },
-  { key: "knowledge", label: "Bilim" },
-  { key: "engagement", label: "Yaqinlik" },
+  { key: "knowledge", label: "Kasbiy kompetensiya" },
+  { key: "teaching", label: "O'qitish samaradorligi" },
+  { key: "communication", label: "Muloqot madaniyati" },
+  { key: "engagement", label: "Talabalarga munosabati" },
 ]
 
 const createInitialTeacherForm = () => ({
-  name: "",
-  title: "",
-  specialization: "",
+  fullName: "",
+  position: "",
+  phone: "",
+  email: "",
+  bio: "",
   departmentId: "",
   department: "",
-  phone: "",
-  qrData: "",
 })
 
 const formatDate = (dateString) => {
@@ -113,6 +115,7 @@ export default function AdminDashboard({ onLogout, navigate }) {
   const [deleteTeacherName, setDeleteTeacherName] = useState("")
   const [teacherForm, setTeacherForm] = useState(createInitialTeacherForm)
   const [imagePreview, setImagePreview] = useState(null)
+  const [teacherImageFile, setTeacherImageFile] = useState(null)
   const [editingTeacherId, setEditingTeacherId] = useState(null)
   const [showTeacherModal, setShowTeacherModal] = useState(false)
   const [viewTeacher, setViewTeacher] = useState(null)
@@ -140,6 +143,17 @@ export default function AdminDashboard({ onLogout, navigate }) {
   const [viewReview, setViewReview] = useState(null)
   const [successMessage, setSuccessMessage] = useState("")
   const successTimeoutRef = useRef(null)
+  const [createdTeacherLink, setCreatedTeacherLink] = useState("")
+
+  const loadMockData = () => {
+    // No longer read mock data from localStorage (prevents stale cached demo data).
+    return initialMockData
+  }
+
+  const saveMockData = (updater) => {
+    // Intentionally no-op: we don't persist mock data anymore.
+    void updater
+  }
 
   // Prevent body scroll when any modal is open
   useEffect(() => {
@@ -176,31 +190,55 @@ export default function AdminDashboard({ onLogout, navigate }) {
     showDeleteDepartmentConfirm,
     viewDepartment,
     showDeleteReviewConfirm,
-    viewReview,
+      viewReview,
   ])
 
   const fetchData = async () => {
+    setIsLoadingData(true)
+    const fallback = loadMockData()
     try {
-      setIsLoadingData(true)
-      const [fRes, dRes, tRes, rRes] = await Promise.all([
-        supabase.from("faculties").select("*").order("id"),
-        supabase.from("departments").select("*").order("id"),
-        supabase.from("teachers").select("*").order("id"),
-        supabase.from("reviews").select("*").order("date", { ascending: false }),
+      const [facultiesRes, departmentsRes, teachersRes, reviewsRes] = await Promise.allSettled([
+        facultiesApi.getAll(),
+        departmentsApi.getAll(),
+        teachersApi.getAll(),
+        reviewsApi.getAll(),
       ])
-
-      if (fRes.error) throw fRes.error
-      if (dRes.error) throw dRes.error
-      if (tRes.error) throw tRes.error
-      if (rRes.error) throw rRes.error
-
-      setFaculties(fRes.data)
-      setDepartments(dRes.data)
-      setTeachers(tRes.data)
-      setReviews(rRes.data)
-    } catch (error) {
-      console.error("Error fetching data:", error)
-      // alert("Ma'lumotlarni yuklashda xatolik yuz berdi!") 
+      setFaculties(
+        facultiesRes.status === "fulfilled" && Array.isArray(facultiesRes.value)
+          ? facultiesRes.value
+          : Array.isArray(fallback.faculties) ? fallback.faculties : [],
+      )
+      setDepartments(
+        departmentsRes.status === "fulfilled" && Array.isArray(departmentsRes.value)
+          ? departmentsRes.value
+          : Array.isArray(fallback.departments) ? fallback.departments : [],
+      )
+      setTeachers(
+        teachersRes.status === "fulfilled" && Array.isArray(teachersRes.value)
+          ? teachersRes.value
+          : Array.isArray(fallback.teachers) ? fallback.teachers : [],
+      )
+      setReviews(
+        reviewsRes.status === "fulfilled" && Array.isArray(reviewsRes.value)
+          ? reviewsRes.value
+          : Array.isArray(fallback.reviews) ? fallback.reviews : [],
+      )
+      // API dan ma'lumot kelsa, eski keshlangan mockData ni tozalash
+      const fromApi =
+        (facultiesRes.status === "fulfilled" && Array.isArray(facultiesRes.value)) ||
+        (departmentsRes.status === "fulfilled" && Array.isArray(departmentsRes.value)) ||
+        (teachersRes.status === "fulfilled" && Array.isArray(teachersRes.value)) ||
+        (reviewsRes.status === "fulfilled" && Array.isArray(reviewsRes.value))
+      if (fromApi && typeof window !== "undefined") {
+        try {
+          window.localStorage.removeItem("mockData")
+        } catch (_) {}
+      }
+    } catch (e) {
+      setFaculties(Array.isArray(fallback.faculties) ? fallback.faculties : [])
+      setDepartments(Array.isArray(fallback.departments) ? fallback.departments : [])
+      setTeachers(Array.isArray(fallback.teachers) ? fallback.teachers : [])
+      setReviews(Array.isArray(fallback.reviews) ? fallback.reviews : [])
     } finally {
       setIsLoadingData(false)
     }
@@ -222,12 +260,11 @@ export default function AdminDashboard({ onLogout, navigate }) {
   }
 
   const resetTeacherForm = () => {
-    const nextId = Math.max(...teachers.map((t) => Number(t.id)), 0) + 1
     const initialForm = createInitialTeacherForm()
-    initialForm.qrData = `https://feedback.urspi.uz/teacher/${nextId}`
     
     setTeacherForm(initialForm)
     setImagePreview(null)
+    setTeacherImageFile(null)
     setEditingTeacherId(null)
     setShowTeacherModal(false)
   }
@@ -288,19 +325,26 @@ export default function AdminDashboard({ onLogout, navigate }) {
     XLSX.writeFile(workbook, "Statistika.xlsx")
   }
 
-  const stats = useMemo(
-    () => ({
+  const stats = useMemo(() => {
+    const activeReviews = reviews.filter((r) => r.isActive)
+    const avg =
+      activeReviews.length > 0
+        ? (
+            activeReviews.reduce(
+              (sum, review) => sum + (review.scores?.overall ?? review.rating ?? 0),
+              0,
+            ) / activeReviews.length
+          ).toFixed(1)
+        : "0.0"
+
+    return {
       faculties: faculties.length,
       departments: departments.length,
       teachers: teachers.length,
-      reviews: reviews.length,
-      avgRating:
-        reviews.length > 0
-          ? (reviews.reduce((sum, review) => sum + (review.scores?.overall ?? review.rating ?? 0), 0) / reviews.length).toFixed(1)
-          : "0.0",
-    }),
-    [teachers.length, reviews, faculties.length, departments.length],
-  )
+      reviews: activeReviews.length,
+      avgRating: avg,
+    }
+  }, [teachers.length, reviews, faculties.length, departments.length])
 
   // Chart data for Pie Chart - Rating distribution
   const ratingDistribution = useMemo(() => {
@@ -364,27 +408,18 @@ export default function AdminDashboard({ onLogout, navigate }) {
     }
 
     try {
+      const body = { nameUz: facultyForm.nameUz, nameRu: facultyForm.nameRu }
       if (editingFacultyId) {
-        const { error } = await supabase
-          .from("faculties")
-          .update({ nameUz: facultyForm.nameUz, nameRu: facultyForm.nameRu })
-          .eq("id", editingFacultyId)
-        
-        if (error) throw error
+        await facultiesApi.update(editingFacultyId, body)
         showSuccess("Fakultet muvaffaqiyatli yangilandi")
       } else {
-        const { error } = await supabase
-          .from("faculties")
-          .insert([{ nameUz: facultyForm.nameUz, nameRu: facultyForm.nameRu }])
-        
-        if (error) throw error
+        await facultiesApi.save(body)
         showSuccess("Fakultet muvaffaqiyatli qo'shildi")
       }
-      
-      await fetchData()
       setFacultyForm({ nameUz: "", nameRu: "" })
       setEditingFacultyId(null)
       setShowFacultyForm(false)
+      fetchData()
     } catch (error) {
       console.error("Error saving faculty:", error)
       alert("Xatolik: " + (error.message || "Noma'lum xatolik"))
@@ -406,12 +441,10 @@ export default function AdminDashboard({ onLogout, navigate }) {
     if (!deleteConfirmId) return
 
     try {
-      const { error } = await supabase.from("faculties").delete().eq("id", deleteConfirmId)
-      if (error) throw error
-
+      await facultiesApi.delete(deleteConfirmId)
+      setFaculties((prev) => prev.filter((f) => f.id !== deleteConfirmId))
       showSuccess("Fakultet muvaffaqiyatli o'chirildi")
-      await fetchData()
-      
+
       if (editingFacultyId === deleteConfirmId) {
         setFacultyForm({ nameUz: "", nameRu: "" })
         setEditingFacultyId(null)
@@ -419,7 +452,7 @@ export default function AdminDashboard({ onLogout, navigate }) {
       }
     } catch (error) {
       console.error("Error deleting faculty:", error)
-      alert("Xatolik yuz berdi")
+      alert("Xatolik: " + (error.message || "Noma'lum xatolik"))
     } finally {
       setShowDeleteConfirm(false)
       setDeleteConfirmId(null)
@@ -447,39 +480,25 @@ export default function AdminDashboard({ onLogout, navigate }) {
     }
 
     try {
+      const body = {
+        facultyId: Number.parseInt(departmentForm.facultyId),
+        nameUz: departmentForm.nameUz,
+        nameRu: departmentForm.nameRu,
+      }
       if (editingDepartmentId) {
-        const { error } = await supabase
-          .from("departments")
-          .update({
-            facultyId: Number.parseInt(departmentForm.facultyId),
-            nameUz: departmentForm.nameUz,
-            nameRu: departmentForm.nameRu,
-          })
-          .eq("id", editingDepartmentId)
-
-        if (error) throw error
+        await departmentsApi.update(editingDepartmentId, body)
         showSuccess("Kafedra muvaffaqiyatli yangilandi")
       } else {
-        const { error } = await supabase
-          .from("departments")
-          .insert([{
-            facultyId: Number.parseInt(departmentForm.facultyId),
-            nameUz: departmentForm.nameUz,
-            nameRu: departmentForm.nameRu,
-            head: "",
-          }])
-        
-        if (error) throw error
+        await departmentsApi.save(body)
         showSuccess("Kafedra muvaffaqiyatli qo'shildi")
       }
-      
-      await fetchData()
       setDepartmentFormState({ nameUz: "", nameRu: "", facultyId: "" })
       setEditingDepartmentId(null)
       setShowDepartmentForm(false)
+      fetchData()
     } catch (error) {
       console.error("Error saving department:", error)
-      alert("Xatolik yuz berdi")
+      alert("Xatolik: " + (error.message || "Noma'lum xatolik"))
     }
   }
 
@@ -508,14 +527,12 @@ export default function AdminDashboard({ onLogout, navigate }) {
   const confirmDeleteDepartment = async () => {
     if (!deleteDepartmentId) return
     try {
-      const { error } = await supabase.from("departments").delete().eq("id", deleteDepartmentId)
-      if (error) throw error
-      
+      await departmentsApi.delete(deleteDepartmentId)
+      setDepartments((prev) => prev.filter((d) => d.id !== deleteDepartmentId))
       showSuccess("Kafedra muvaffaqiyatli o'chirildi")
-      await fetchData()
     } catch (error) {
       console.error("Error deleting department:", error)
-      alert("Xatolik yuz berdi")
+      alert("Xatolik: " + (error.message || "Noma'lum xatolik"))
     } finally {
       setShowDeleteDepartmentConfirm(false)
       setDeleteDepartmentId(null)
@@ -523,60 +540,96 @@ export default function AdminDashboard({ onLogout, navigate }) {
   }
 
   const handleImageChange = (event) => {
-    const file = event.target.files[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (readerEvent) => {
-        setImagePreview(readerEvent.target?.result ?? null)
-      }
-      reader.readAsDataURL(file)
+    const file = event.target.files?.[0] || null
+
+    if (!file) {
+      setTeacherImageFile(null)
+      setImagePreview(null)
+      return
     }
+
+    setTeacherImageFile(file)
+
+    setImagePreview(URL.createObjectURL(file))
   }
 
   const handleAddOrUpdateTeacher = async (event) => {
     event.preventDefault()
     
-    // Validate required fields
-    if (!teacherForm.name || !teacherForm.title || !teacherForm.departmentId || 
-        !teacherForm.phone || !imagePreview) {
-      alert("Iltimos, barcha majburiy maydonlarni to'ldiring: Ism, Lavozim, Kafedra, Telefon va Rasm")
+    if (
+      !teacherForm.fullName ||
+      !teacherForm.position ||
+      !teacherForm.departmentId ||
+      !teacherForm.email ||
+      (!imagePreview && !teacherImageFile)
+    ) {
+      alert(
+        "Iltimos, barcha majburiy maydonlarni to'ldiring: F.I.Sh, Lavozim, Kafedra, E-pochta va Rasm",
+      )
       return
     }
 
     try {
-      const teacherData = {
-        name: teacherForm.name,
-        title: teacherForm.title || "O'qituvchi",
-        specialization: teacherForm.specialization || teacherForm.department,
-        departmentId: Number.parseInt(teacherForm.departmentId),
-        phone: teacherForm.phone,
-        qrData: teacherForm.qrData || teacherForm.name,
-        image: imagePreview || "",
-      }
+      const formData = new FormData()
 
+      formData.append("fullName", teacherForm.fullName)
+      formData.append("position", teacherForm.position || "O'qituvchi")
+      formData.append("phone", teacherForm.phone || "")
+      formData.append("email", teacherForm.email)
+      formData.append("bio", teacherForm.bio || "")
+      formData.append("departmentId", String(Number.parseInt(teacherForm.departmentId)))
+
+      if (teacherImageFile) {
+        formData.append("image", teacherImageFile)
+      }
       if (editingTeacherId) {
-        const { error } = await supabase
-          .from("teachers")
-          .update(teacherData)
-          .eq("id", editingTeacherId)
-        
-        if (error) throw error
+        await teachersApi.update(editingTeacherId, formData)
         showSuccess("O'qituvchi ma'lumotlari muvaffaqiyatli yangilandi")
       } else {
-        const { error } = await supabase
-          .from("teachers")
-          .insert([teacherData])
-        
-        if (error) throw error
+        const created = await teachersApi.save(formData)
+        const createdId =
+          created?.id ??
+          created?.data?.id ??
+          created?.content?.id ??
+          created?.teacher?.id ??
+          created?.data?.teacher?.id ??
+          null
+
+        if (!createdId) {
+          throw new Error("O'qituvchi qo'shildi, lekin server id qaytarmadi")
+        }
+
+        const teacherLink = `https://feedback.urspi.uz/teacher/${createdId}`
+
+        setCreatedTeacherLink(teacherLink)
+
+        const dept = departments.find((d) => Number(d.id) === Number(teacherForm.departmentId))
+        const optimistic = {
+          id: createdId,
+          fullName: teacherForm.fullName,
+          name: teacherForm.fullName,
+          position: teacherForm.position,
+          title: teacherForm.position,
+          phone: teacherForm.phone,
+          email: teacherForm.email,
+          bio: teacherForm.bio,
+          departmentId: teacherForm.departmentId,
+          department: dept ? dept.nameUz : "",
+          qrData: teacherLink,
+          image: imagePreview || null,
+        }
+        setTeachers((prev) => {
+          const exists = prev.some((t) => Number(t.id) === Number(createdId))
+          return exists ? prev : [optimistic, ...prev]
+        })
         showSuccess("O'qituvchi muvaffaqiyatli qo'shildi")
       }
-
-      await fetchData()
       resetTeacherForm()
       setShowTeacherModal(false)
+      fetchData()
     } catch (error) {
       console.error("Error saving teacher:", error)
-      alert("Xatolik yuz berdi")
+      alert("Xatolik: " + (error.message || "Noma'lum xatolik"))
     }
   }
 
@@ -584,15 +637,16 @@ export default function AdminDashboard({ onLogout, navigate }) {
     setActiveTab("teachers")
     setEditingTeacherId(teacher.id)
     setTeacherForm({
-      name: teacher.name,
-      title: teacher.title,
-      specialization: teacher.specialization,
+      fullName: teacher.fullName || teacher.name || "",
+      position: teacher.position || teacher.title || "",
+      phone: teacher.phone || "",
+      email: teacher.email || "",
+      bio: teacher.bio || "",
       departmentId: teacher.departmentId ? String(teacher.departmentId) : "",
       department: teacher.department,
-      phone: teacher.phone,
-      qrData: teacher.qrData,
     })
     setImagePreview(teacher.image || null)
+    setTeacherImageFile(null)
     setShowTeacherModal(true)
   }
 
@@ -600,7 +654,7 @@ export default function AdminDashboard({ onLogout, navigate }) {
     const teacher = teachers.find((t) => Number(t.id) === Number(teacherId))
     if (teacher) {
       setDeleteTeacherId(teacherId)
-      setDeleteTeacherName(teacher.name)
+      setDeleteTeacherName(teacher.fullName || teacher.name || "")
       setShowDeleteTeacherConfirm(true)
     }
   }
@@ -609,18 +663,17 @@ export default function AdminDashboard({ onLogout, navigate }) {
     if (!deleteTeacherId) return
 
     try {
-      const { error } = await supabase.from("teachers").delete().eq("id", deleteTeacherId)
-      if (error) throw error
-
+      await teachersApi.delete(deleteTeacherId)
+      setTeachers((prev) => prev.filter((t) => Number(t.id) !== Number(deleteTeacherId)))
+      setReviews((prev) => prev.filter((r) => Number(r.teacherId) !== Number(deleteTeacherId)))
       showSuccess("O'qituvchi muvaffaqiyatli o'chirildi")
-      await fetchData()
 
       if (editingTeacherId && Number(editingTeacherId) === Number(deleteTeacherId)) {
         resetTeacherForm()
       }
     } catch (error) {
       console.error("Error deleting teacher:", error)
-      alert("Xatolik yuz berdi")
+      alert("Xatolik: " + (error.message || "Noma'lum xatolik"))
     } finally {
       setShowDeleteTeacherConfirm(false)
       setDeleteTeacherId(null)
@@ -643,14 +696,12 @@ export default function AdminDashboard({ onLogout, navigate }) {
     if (!deleteReviewId) return
 
     try {
-      const { error } = await supabase.from("reviews").delete().eq("id", deleteReviewId)
-      if (error) throw error
-
+      await reviewsApi.delete(deleteReviewId)
+      setReviews((prev) => prev.filter((r) => r.id !== deleteReviewId))
       showSuccess("Sharh muvaffaqiyatli o'chirildi")
-      await fetchData()
     } catch (error) {
       console.error("Error deleting review:", error)
-      alert("Xatolik yuz berdi")
+      alert("Xatolik: " + (error.message || "Noma'lum xatolik"))
     } finally {
       setShowDeleteReviewConfirm(false)
       setDeleteReviewId(null)
@@ -734,14 +785,9 @@ export default function AdminDashboard({ onLogout, navigate }) {
 
   const handleToggleReviewStatus = async (reviewId, newStatus) => {
     try {
-      const { error } = await supabase
-        .from("reviews")
-        .update({ isActive: newStatus })
-        .eq("id", reviewId)
-      
-      if (error) throw error
-      
-      setReviews((prev) => prev.map((r) => (r.id === reviewId ? { ...r, isActive: newStatus } : r)))
+      const updated = reviews.map((r) => (r.id === reviewId ? { ...r, isActive: newStatus } : r))
+      setReviews(updated)
+      saveMockData((current) => ({ ...current, reviews: updated }))
       showSuccess(`Sharh statusi ${newStatus ? "Faol" : "Faol emas"} holatiga o'zgartirildi`)
     } catch (error) {
       console.error("Error updating review status:", error)
@@ -753,6 +799,8 @@ export default function AdminDashboard({ onLogout, navigate }) {
     <div
       className={`min-h-screen flex transition-colors duration-300 ${isDarkMode ? "bg-[#0e1a22]" : "bg-slate-50"}`}
     >
+      {/* QR modal removed */}
+
       {/* Sidebar */}
       <aside
         className={`${

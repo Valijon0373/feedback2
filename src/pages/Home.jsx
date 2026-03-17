@@ -1,79 +1,93 @@
 import { useEffect, useState } from "react"
-import { supabase } from "../lib/supabase"
+import { mockData } from "../data/mockData"
+import { facultiesApi, teachersApi, reviewsApi, departmentsApi } from "../lib/api"
 
 export default function Home({ navigate }) {
   const [openReviews, setOpenReviews] = useState(false)
   const [openTeachers, setOpenTeachers] = useState(false)
-  
+
   const [stats, setStats] = useState({
     faculties: 0,
     teachers: 0,
-    reviews: 0
+    reviews: 0,
   })
-  
+
   const [topTeachers, setTopTeachers] = useState([])
   const [recentReviews, setRecentReviews] = useState([])
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Get counts
-        const { count: facultiesCount } = await supabase.from('faculties').select('*', { count: 'exact', head: true })
-        const { count: teachersCount } = await supabase.from('teachers').select('*', { count: 'exact', head: true })
-        const { count: reviewsCount } = await supabase.from('reviews').select('*', { count: 'exact', head: true })
-        
-        setStats({
-          faculties: facultiesCount || 0,
-          teachers: teachersCount || 0,
-          reviews: reviewsCount || 0
-        })
+    const loadData = async () => {
+      const [facultiesRes, teachersRes, reviewsRes, departmentsRes] = await Promise.allSettled([
+        facultiesApi.getAll(),
+        teachersApi.getAll(),
+        reviewsApi.getAll(),
+        departmentsApi.getAll(),
+      ])
 
-        // Get recent reviews
-        const { data: reviews } = await supabase
-           .from('reviews')
-           .select('*')
-           .eq('isActive', true)
-           .order('date', { ascending: false })
-           .limit(5)
-        setRecentReviews(reviews || [])
+      const facultiesList =
+        facultiesRes.status === "fulfilled" && Array.isArray(facultiesRes.value)
+          ? facultiesRes.value
+          : Array.isArray(mockData.faculties) ? mockData.faculties : []
+      const teachersList =
+        teachersRes.status === "fulfilled" && Array.isArray(teachersRes.value)
+          ? teachersRes.value
+          : Array.isArray(mockData.teachers) ? mockData.teachers : []
+      const reviewsList =
+        reviewsRes.status === "fulfilled" && Array.isArray(reviewsRes.value)
+          ? reviewsRes.value
+          : Array.isArray(mockData.reviews) ? mockData.reviews : []
+      const departmentsList =
+        departmentsRes.status === "fulfilled" && Array.isArray(departmentsRes.value)
+          ? departmentsRes.value
+          : Array.isArray(mockData.departments) ? mockData.departments : []
 
-        // Calculate top teachers
-        const { data: allTeachers } = await supabase.from('teachers').select('id, name, departmentId')
-        const { data: allReviews } = await supabase.from('reviews').select('teacherId, rating, scores').eq('isActive', true)
-        
-        // Also need departments for teacher info if department name is not stored (it is stored in mockData normalization, but in Supabase we store departmentId)
-        // But in the table definition I added `departmentId`. I should probably join.
-        // For now, assuming `department` field is not in table (I removed it in SQL), I need to fetch departments to show name.
-        const { data: allDepartments } = await supabase.from('departments').select('id, nameUz')
+      setStats({
+        faculties: facultiesList.length,
+        teachers: teachersList.length,
+        reviews: reviewsList.length,
+      })
 
-        if (allTeachers && allReviews) {
-          const calculatedTop = allTeachers.map(t => {
-            const teacherReviews = allReviews.filter(r => r.teacherId === t.id)
-            const avg = teacherReviews.length > 0 
-              ? teacherReviews.reduce((sum, r) => sum + (r.scores?.overall ?? r.rating ?? 0), 0) / teacherReviews.length
-              : 0
-            
-            const deptName = allDepartments?.find(d => d.id === t.departmentId)?.nameUz || ""
+      const recent = reviewsList
+        .filter((r) => r.isActive !== false)
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 5)
+      setRecentReviews(recent)
 
-            return { 
-              ...t, 
-              department: deptName, 
-              avg: Number(avg.toFixed(1)), 
-              reviewCount: teacherReviews.length 
+      if (teachersList.length && reviewsList.length) {
+        const calculatedTop = teachersList
+          .map((t) => {
+            const teacherReviews = reviewsList.filter(
+              (r) => Number(r.teacherId) === Number(t.id) && r.isActive !== false,
+            )
+            const avg =
+              teacherReviews.length > 0
+                ? teacherReviews.reduce(
+                    (sum, r) => sum + (r.scores?.overall ?? r.rating ?? 0),
+                    0,
+                  ) / teacherReviews.length
+                : 0
+
+            const deptName =
+              departmentsList.find((d) => Number(d.id) === Number(t.departmentId))?.nameUz ||
+              t.department ||
+              ""
+
+            return {
+              ...t,
+              department: deptName,
+              avg: Number(avg.toFixed(1)),
+              reviewCount: teacherReviews.length,
             }
           })
-          .filter(t => t.reviewCount > 0)
+          .filter((t) => t.reviewCount > 0)
           .sort((a, b) => b.avg - a.avg)
           .slice(0, 5)
-          
-          setTopTeachers(calculatedTop)
-        }
-      } catch (error) {
-        console.error("Error fetching home data:", error)
+
+        setTopTeachers(calculatedTop)
       }
     }
-    
-    fetchData()
+
+    loadData()
   }, [])
 
   // Count-up animation for stats

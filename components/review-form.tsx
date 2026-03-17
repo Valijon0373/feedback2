@@ -6,9 +6,10 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
+import { reviewsApi } from "@/lib/api"
 
 interface ReviewFormProps {
   teacherId: string
@@ -34,21 +35,15 @@ export function ReviewForm({ teacherId, onReviewSubmitted }: ReviewFormProps) {
     setLoading(true)
 
     try {
-      const response = await fetch("/api/reviews", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          teacher_id: teacherId,
-          rating: Number.parseInt(formData.rating),
-          teaching_quality: Number.parseInt(formData.teaching_quality),
-          communication: Number.parseInt(formData.communication),
-          professional_knowledge: Number.parseInt(formData.professional_knowledge),
-          approachability: Number.parseInt(formData.approachability),
-        }),
+      await reviewsApi.save({
+        ...formData,
+        teacherId: teacherId,
+        rating: Number.parseInt(formData.rating),
+        teaching_quality: Number.parseInt(formData.teaching_quality),
+        communication: Number.parseInt(formData.communication),
+        professional_knowledge: Number.parseInt(formData.professional_knowledge),
+        approachability: Number.parseInt(formData.approachability),
       })
-
-      if (!response.ok) throw new Error("Failed to submit review")
 
       toast({
         title: "Muvaffaqiyat!",
@@ -70,7 +65,10 @@ export function ReviewForm({ teacherId, onReviewSubmitted }: ReviewFormProps) {
     } catch (error) {
       toast({
         title: "Xato!",
-        description: "Sharh yuborishda xato yuz berdi.",
+        description:
+          error instanceof Error && error.message
+            ? error.message
+            : "Sharh yuborishda xato yuz berdi.",
         variant: "destructive",
       })
     } finally {
@@ -108,15 +106,15 @@ export function ReviewForm({ teacherId, onReviewSubmitted }: ReviewFormProps) {
           </div>
 
           <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-            {["rating", "teaching_quality", "communication", "professional_knowledge", "approachability"].map(
+            {["rating", "professional_knowledge", "teaching_quality", "communication", "approachability"].map(
               (field) => (
                 <div key={field} className="space-y-2">
                   <label className="text-xs font-medium capitalize">
                     {field === "rating" && "Umumiy"}
-                    {field === "teaching_quality" && "O'qitish"}
-                    {field === "communication" && "Muloqot"}
-                    {field === "professional_knowledge" && "Bilim"}
-                    {field === "approachability" && "Yaqinlik"}
+                    {field === "professional_knowledge" && "Kasbiy kompetensiya"}
+                    {field === "teaching_quality" && "O'qitish samaradorligi"}
+                    {field === "communication" && "Muloqot madaniyati"}
+                    {field === "approachability" && "Talabalarga munosabati"}
                   </label>
                   <Select
                     value={formData[field as keyof typeof formData] as string}

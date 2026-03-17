@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
-import { supabase } from "../lib/supabase"
+import { mockData } from "../data/mockData"
+import { departmentsApi, teachersApi, reviewsApi, buildImageUrl } from "../lib/api"
 
 export default function Department({ id, navigate }) {
   const [department, setDepartment] = useState(null)
@@ -11,17 +12,55 @@ export default function Department({ id, navigate }) {
     const loadData = async () => {
       if (!id) return
       setLoading(true)
-      
-      const { data: dept } = await supabase.from('departments').select('*').eq('id', id).single()
-      if (dept) setDepartment(dept)
 
-      const { data: t } = await supabase.from('teachers').select('*').eq('departmentId', id)
-      if (t) setTeachers(t)
+      try {
+        const [deptRes, departmentsRes, teachersRes, reviewsRes] = await Promise.allSettled([
+          departmentsApi.getById(id),
+          departmentsApi.getAll(),
+          teachersApi.getAll(),
+          reviewsApi.getAll(),
+        ])
 
-      const { data: r } = await supabase.from('reviews').select('*').eq('isActive', true)
-      if (r) setReviews(r)
+        let dept = deptRes.status === "fulfilled" ? deptRes.value : null
+        if (!dept) {
+          const departments =
+            departmentsRes.status === "fulfilled" && Array.isArray(departmentsRes.value)
+              ? departmentsRes.value
+              : Array.isArray(mockData.departments) ? mockData.departments : []
+          dept = departments.find((d) => Number(d.id) === Number(id)) || null
+        }
+        setDepartment(dept)
 
-      setLoading(false)
+        const teachersData =
+          teachersRes.status === "fulfilled" && Array.isArray(teachersRes.value)
+            ? teachersRes.value
+            : Array.isArray(mockData.teachers)
+              ? mockData.teachers
+              : []
+
+        const t = teachersData.filter((teacher) => {
+          const teacherDeptId =
+            teacher.departmentId ??
+            teacher.department_id ??
+            (teacher.department && teacher.department.id)
+          return Number(teacherDeptId) === Number(id)
+        })
+        setTeachers(t)
+
+        const reviewsData =
+          reviewsRes.status === "fulfilled" && Array.isArray(reviewsRes.value)
+            ? reviewsRes.value
+            : Array.isArray(mockData.reviews) ? mockData.reviews : []
+        const r = reviewsData.filter((review) => review.isActive !== false)
+        setReviews(r)
+      } catch (error) {
+        console.error("Failed to load department data:", error)
+        setDepartment(null)
+        setTeachers([])
+        setReviews([])
+      } finally {
+        setLoading(false)
+      }
     }
     loadData()
   }, [id])
@@ -90,7 +129,9 @@ export default function Department({ id, navigate }) {
               >
                 <div className="w-full h-56 rounded-lg mb-4 overflow-hidden bg-slate-100 flex items-center justify-center">
                   <img
-                    src={teacher.image || "/placeholder.svg"}
+                    src={buildImageUrl(
+                      teacher.imageUrl || teacher.image || teacher.photo || teacher.avatar || "",
+                    ) || "/placeholder.svg"}
                     alt={teacher.name}
                     className="w-full h-full object-contain"
                     loading="lazy"

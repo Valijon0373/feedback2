@@ -1,33 +1,85 @@
 import { useState, useEffect } from "react"
 import { Search } from "lucide-react"
-import { supabase } from "../lib/supabase"
+import { mockData } from "../data/mockData"
+import { teachersApi, reviewsApi, departmentsApi, buildImageUrl } from "../lib/api"
 
 export default function Teachers({ navigate }) {
   const [searchTerm, setSearchTerm] = useState("")
   const [teachers, setTeachers] = useState([])
   const [reviews, setReviews] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const getTeacherImageSrc = (t) => {
+    const raw =
+      t?.imageUrl ||
+      t?.image ||
+      t?.photo ||
+      t?.avatar ||
+      ""
+
+    if (!raw) return "/placeholder.svg"
+
+    return buildImageUrl(raw) || "/placeholder.svg"
+  }
+
+  const getTeacherDisplayName = (t) => t?.fullName || t?.name || ""
+  const getTeacherDisplayTitle = (t) => t?.position || t?.title || ""
+  const getTeacherQrSrc = (t) => {
+    if (!t?.id) return "/placeholder.svg"
+    const url = `https://feedback.urspi.uz/teacher/${t.id}`
+    return `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(url)}`
+  }
 
   useEffect(() => {
-    const fetchData = async () => {
-       const { data: t } = await supabase.from('teachers').select('*')
-       const { data: r } = await supabase.from('reviews').select('*').eq('isActive', true)
-       const { data: d } = await supabase.from('departments').select('id, nameUz')
-       
-       if (t && r && d) {
-         const enrichedTeachers = t.map(teacher => {
-           const dept = d.find(dp => dp.id === teacher.departmentId)
-           return { ...teacher, department: dept ? dept.nameUz : "" }
-         })
-         setTeachers(enrichedTeachers)
-         setReviews(r)
-       }
+    const loadData = async () => {
+      setLoading(true)
+      try {
+        const [teachersRes, reviewsRes, departmentsRes] = await Promise.allSettled([
+          teachersApi.getAll(),
+          reviewsApi.getAll(),
+          departmentsApi.getAll(),
+        ])
+        const t =
+          teachersRes.status === "fulfilled" && Array.isArray(teachersRes.value)
+            ? teachersRes.value
+            : Array.isArray(mockData.teachers) ? mockData.teachers : []
+        const r =
+          reviewsRes.status === "fulfilled" && Array.isArray(reviewsRes.value)
+            ? reviewsRes.value
+            : Array.isArray(mockData.reviews) ? mockData.reviews : []
+        const d =
+          departmentsRes.status === "fulfilled" && Array.isArray(departmentsRes.value)
+            ? departmentsRes.value
+            : Array.isArray(mockData.departments) ? mockData.departments : []
+
+        const enrichedTeachers = t.map((teacher) => {
+          const teacherDeptId =
+            teacher.departmentId ??
+            teacher.department_id ??
+            (teacher.department && teacher.department.id)
+
+          const dept = d.find((dp) => Number(dp.id) === Number(teacherDeptId))
+          return {
+            ...teacher,
+            departmentId: teacherDeptId,
+            department: dept ? dept.nameUz : teacher.department || "",
+          }
+        })
+
+        setTeachers(enrichedTeachers)
+        setReviews(r.filter((rev) => rev.isActive !== false))
+      } finally {
+        setLoading(false)
+      }
     }
-    fetchData()
+    loadData()
   }, [])
+
+  if (loading) return <div className="text-center text-slate-600 py-8">Yuklanmoqda...</div>
 
   const filtered = teachers.filter(
     (t) =>
-      t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getTeacherDisplayName(t).toLowerCase().includes(searchTerm.toLowerCase()) ||
       (t.department || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (t.specialization || "").toLowerCase().includes(searchTerm.toLowerCase()),
   )
@@ -47,7 +99,8 @@ export default function Teachers({ navigate }) {
               className="w-full pl-10 pr-4 py-3 border-2 border-blue-500 rounded-full focus:outline-none focus:border-blue-600"
             />
           </div>
-          <button className="px-8 py-3 border-2 border-blue-600 text-blue-600 rounded-full hover:bg-blue-600 hover:text-white transition-colors whitespace-nowrap">
+          <button className="px-8 py-3 border-2 border-blue-600 text-blue-600 rounded-full hover:bg-blue-600 
+          hover:text-white transition-colors whitespace-nowrap">
             Qidirish
           </button>
         </div>
@@ -64,6 +117,7 @@ export default function Teachers({ navigate }) {
               : "0.0"
 
           return (
+          
             <div
               key={teacher.id}
               onClick={() => navigate("teacher", teacher.id)}
@@ -71,17 +125,17 @@ export default function Teachers({ navigate }) {
             >
               <div className="w-full h-56 rounded-lg mb-4 overflow-hidden bg-slate-100 flex items-center justify-center">
                 <img
-                  src={teacher.image || "/placeholder.svg"}
-                  alt={teacher.name}
+                  src={getTeacherImageSrc(teacher)}
+                  
+                  alt={getTeacherDisplayName(teacher)}
                   className="w-full h-full object-contain"
                   loading="lazy"
                 />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-slate-900">{teacher.name}</h2>
-                <p className="text-sm text-blue-600">{teacher.title}</p>
+                <h2 className="text-lg font-bold text-slate-900">{getTeacherDisplayName(teacher)}</h2>
+                <p className="text-sm text-blue-600">{getTeacherDisplayTitle(teacher)}</p>
               </div>
-              <p className="text-sm text-slate-600">{teacher.specialization || teacher.department}</p>
               <p className="text-xs text-slate-500">Kafedra: {teacher.department}</p>
               {teacher.experience && <p className="text-xs text-slate-500">Tajriba: {teacher.experience}</p>}
               <div className="flex justify-between items-center pt-2">
