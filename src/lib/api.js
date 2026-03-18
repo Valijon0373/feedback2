@@ -2,15 +2,18 @@
 
 import { mockData as initialMockData } from "../data/mockData"
 
+// Production'da API base URL. Dev'da Vite proxy ishlatamiz (bo'sh = relative /api).
+const DEFAULT_API_BASE = "https://feedback.urspi.uz"
+
 export const getBaseUrl = () => {
   try {
-    // Dev'da CORS muammosini oldini olish uchun Vite proxy ishlatamiz (relative /api).
     if (typeof import.meta !== "undefined" && import.meta?.env?.DEV) return ""
     const envBase =
       (typeof import.meta !== "undefined" && import.meta?.env?.VITE_API_BASE_URL) || ""
-    return String(envBase || "").replace(/\/+$/, "")
+    const base = String(envBase || DEFAULT_API_BASE).replace(/\/+$/, "")
+    return base || ""
   } catch {
-    return ""
+    return DEFAULT_API_BASE
   }
 }
 
