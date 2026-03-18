@@ -1,4 +1,4 @@
-import { Eye, Pencil, Plus, Trash2, X, Search, Download, Users, Mail } from "lucide-react"
+import { Eye, Pencil, Plus, Trash2, X, Search, Download, Mail } from "lucide-react"
 import { buildImageUrl } from "../../lib/api"
 
 export default function TeachersTable({
@@ -431,29 +431,28 @@ export default function TeachersTable({
                           className="w-24 h-24 rounded-full border-4 overflow-hidden bg-gray-200"
                           style={{ borderColor: isDarkMode ? "#14232c" : "#fff" }}
                         >
-                          {teacher.imageUrl || teacher.image || teacher.photo || teacher.avatar ? (
-                            <img
-                              src={
-                                buildImageUrl(
-                                  teacher.imageUrl || teacher.image || teacher.photo || teacher.avatar || "",
-                                ) || "/placeholder.svg"
-                              }
-                              alt={teacher.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div
-                              className={`w-full h-full flex items-center justify-center ${
-                                isDarkMode ? "bg-[#1a2d3a]" : "bg-gray-200"
-                              }`}
-                            >
-                              <Users
-                                className={`w-12 h-12 ${
-                                  isDarkMode ? "text-[#8b9ba8]" : "text-gray-400"
-                                }`}
-                              />
-                            </div>
-                          )}
+                          <img
+                            src={
+                              buildImageUrl(
+                                teacher.imageLink ||
+                                  teacher.imageUrl ||
+                                  teacher.image ||
+                                  teacher.photo ||
+                                  teacher.avatar ||
+                                  "",
+                              ) ||
+                              `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                teacher.fullName || teacher.name || "?"
+                              )}&size=96&background=6366f1&color=fff`
+                            }
+                            alt={teacher.fullName || teacher.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                teacher.fullName || teacher.name || "?"
+                              )}&size=96&background=6366f1&color=fff`
+                            }}
+                          />
                         </div>
                       </div>
                     </div>
@@ -571,29 +570,28 @@ export default function TeachersTable({
 
             <div className="flex flex-col items-center mb-6">
               <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-[#00d4aa] mb-3">
-                {viewTeacher.imageUrl || viewTeacher.image || viewTeacher.photo || viewTeacher.avatar ? (
-                  <img
-                    src={
-                      buildImageUrl(
-                        viewTeacher.imageUrl || viewTeacher.image || viewTeacher.photo || viewTeacher.avatar || "",
-                      ) || "/placeholder.svg"
-                    }
-                    alt={viewTeacher.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div
-                    className={`w-full h-full flex items-center justify-center ${
-                      isDarkMode ? "bg-[#1a2d3a]" : "bg-gray-200"
-                    }`}
-                  >
-                    <Users
-                      className={`w-12 h-12 ${
-                        isDarkMode ? "text-[#8b9ba8]" : "text-gray-400"
-                      }`}
-                    />
-                  </div>
-                )}
+                <img
+                  src={
+                    buildImageUrl(
+                      viewTeacher.imageLink ||
+                        viewTeacher.imageUrl ||
+                        viewTeacher.image ||
+                        viewTeacher.photo ||
+                        viewTeacher.avatar ||
+                        "",
+                    ) ||
+                    `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                      viewTeacher.fullName || viewTeacher.name || "?"
+                    )}&size=96&background=6366f1&color=fff`
+                  }
+                  alt={viewTeacher.fullName || viewTeacher.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                      viewTeacher.fullName || viewTeacher.name || "?"
+                    )}&size=96&background=6366f1&color=fff`
+                  }}
+                />
               </div>
               <h3
                 className={`text-lg font-bold text-center ${
