@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from "react"
 import { CheckCircle, X, Mail, Landmark } from "lucide-react"
 import { reviewsApi, buildImageUrl } from "../lib/api"
+import StarRating from "./StarRating"
 
 const SCORE_FIELDS = [
   { key: "knowledge", label: "Kasbiy kompetensiya" },
@@ -382,13 +383,7 @@ export default function TeacherProfile({ teacher, onBack, layout = "default" }) 
 
           <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4 mt-6">
             <div className="flex items-center justify-center gap-2 mb-1">
-              <div className="flex gap-0.5">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <span key={star} className={star <= Math.round(parseFloat(overallRating)) ? "text-yellow-500" : "text-gray-300"} style={{ fontSize: '1.3em' }}>
-                    ★
-                  </span>
-                ))}
-              </div>
+              <StarRating rating={overallRating} size="lg" />
               <span className="text-sm font-semibold text-yellow-700">{overallRating}/5</span>
             </div>
             <p className="text-xs text-yellow-600 text-center">{totalReviews} ta sharh asosida</p>
@@ -498,14 +493,8 @@ export default function TeacherProfile({ teacher, onBack, layout = "default" }) 
                     <p className="text-xs text-slate-500">{formatDate(review.date || review.created_at)}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="flex gap-0.5">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <span key={star} className={star <= review.rating ? "text-yellow-500" : "text-gray-300"} style={{ fontSize: '1.1em' }}>
-                          ★
-                        </span>
-                      ))}
-                    </div>
-                    <span className="text-yellow-500 font-semibold text-sm">{formatRating(review.rating)}</span>
+                    <StarRating rating={review.scores?.overall ?? review.rating ?? 0} size="md" />
+                    <span className="text-yellow-500 font-semibold text-sm">{formatRating(review.scores?.overall ?? review.rating ?? 0)}</span>
                   </div>
                 </div>
                 <p className="text-sm text-slate-600 mb-3">{review.comment}</p>

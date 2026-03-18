@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { mockData } from "../data/mockData"
 import { facultiesApi, teachersApi, reviewsApi, departmentsApi } from "../lib/api"
+import StarRating from "../components/StarRating"
 
 export default function Home({ navigate }) {
   const [openReviews, setOpenReviews] = useState(false)
@@ -234,13 +235,7 @@ export default function Home({ navigate }) {
                           <p className="text-sm text-slate-500">{review.teacherName}</p>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <div className="flex gap-0.5">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <span key={star} className={star <= Math.round(review.scores?.overall ?? review.rating ?? 0) ? "text-yellow-500" : "text-gray-300"} style={{ fontSize: '0.9em' }}>
-                                ★
-                              </span>
-                            ))}
-                          </div>
+                          <StarRating rating={review.scores?.overall ?? review.rating ?? 0} size="sm" />
                           <span className="text-yellow-500 font-semibold text-sm">
                             {(review.scores?.overall ?? review.rating ?? 0).toFixed(1)}
                           </span>
@@ -301,13 +296,7 @@ export default function Home({ navigate }) {
                         <p className="text-sm text-slate-500">{teacher.department}</p>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <div className="flex gap-0.5">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <span key={star} className={star <= Math.round(teacher.avg) ? "text-yellow-500" : "text-gray-300"} style={{ fontSize: '0.9em' }}>
-                              ★
-                            </span>
-                          ))}
-                        </div>
+                        <StarRating rating={teacher.avg} size="sm" />
                         <span className="font-bold text-blue-600 text-sm">{teacher.avg}</span>
                       </div>
                     </div>

@@ -1,4 +1,5 @@
 import { Eye, Trash2, X } from "lucide-react"
+import StarRating from "../../components/StarRating"
 
 export default function CommentsTable({
   isDarkMode,
@@ -62,23 +63,7 @@ export default function CommentsTable({
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <div className="flex gap-0.5">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <span
-                        key={star}
-                        className={
-                          star <= review.rating
-                            ? "text-yellow-400"
-                            : isDarkMode
-                              ? "text-gray-600"
-                              : "text-gray-300"
-                        }
-                        style={{ fontSize: "1.1em" }}
-                      >
-                        ★
-                      </span>
-                    ))}
-                  </div>
+                  <StarRating rating={review.scores?.overall ?? review.rating ?? 0} size="md" />
                 </div>
               </div>
               <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

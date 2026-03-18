@@ -1,5 +1,6 @@
 import { Eye, Pencil, Plus, Trash2, X, Search, Download, Mail } from "lucide-react"
 import { buildImageUrl } from "../../lib/api"
+import StarRating from "../../components/StarRating"
 
 export default function TeachersTable({
   isDarkMode,
@@ -480,17 +481,7 @@ export default function TeachersTable({
                       {/* Rating Info */}
                       <div className="mb-4 text-center">
                         <div className="flex items-center justify-center gap-2 mb-1">
-                          <div className="flex gap-0.5">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <span
-                                key={star}
-                                className={star <= Math.round(metrics.overall) ? "text-yellow-400" : "text-gray-500"}
-                                style={{ fontSize: "0.9em" }}
-                              >
-                                ★
-                              </span>
-                            ))}
-                          </div>
+                          <StarRating rating={metrics.overall} size="sm" />
                           <span className="text-sm font-semibold text-yellow-400">
                             {metrics.overall.toFixed(1)} / 5
                           </span>
@@ -684,17 +675,7 @@ export default function TeachersTable({
                   const metrics = calculateTeacherMetrics(viewTeacher.id, reviews)
                   return (
                     <div className="flex items-center gap-2 flex-wrap">
-                      <div className="flex gap-0.5">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <span
-                            key={star}
-                            className={star <= Math.round(metrics.overall) ? "text-yellow-400" : "text-gray-500"}
-                            style={{ fontSize: "0.9em" }}
-                          >
-                            ★
-                          </span>
-                        ))}
-                      </div>
+                      <StarRating rating={metrics.overall} size="sm" />
                       <span className="text-yellow-400 font-bold">
                         {metrics.overall.toFixed(1)} / 5
                       </span>

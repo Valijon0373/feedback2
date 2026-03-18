@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { Search } from "lucide-react"
 import { mockData } from "../data/mockData"
 import { teachersApi, reviewsApi, departmentsApi, buildImageUrl } from "../lib/api"
+import StarRating from "../components/StarRating"
 
 export default function Teachers({ navigate }) {
   const [searchTerm, setSearchTerm] = useState("")
@@ -161,13 +162,7 @@ export default function Teachers({ navigate }) {
               <div className="flex justify-between items-center pt-2">
                 <span className="text-sm text-slate-500">{teacherReviews.length} ta sharh</span>
                 <div className="flex items-center gap-1.5">
-                  <div className="flex gap-0.5">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <span key={star} className={star <= Math.round(parseFloat(avgRating)) ? "text-yellow-500" : "text-gray-300"} style={{ fontSize: '0.9em' }}>
-                        ★
-                      </span>
-                    ))}
-                  </div>
+                  <StarRating rating={avgRating} size="sm" />
                   <span className="font-semibold text-yellow-500 text-sm">{avgRating}/5</span>
                 </div>
               </div>
