@@ -65,7 +65,13 @@ const formatDate = (dateString) => {
 }
 
 const calculateTeacherMetrics = (teacherId, reviews) => {
-  const teacherReviews = reviews.filter((review) => Number(review.teacherId) === Number(teacherId))
+  if (teacherId == null || teacherId === "") return { total: 0, overall: 0, averages: SCORE_FIELDS.reduce((acc, { key }) => ({ ...acc, [key]: 0 }), {}) }
+  const tid = Number(teacherId)
+  if (Number.isNaN(tid)) return { total: 0, overall: 0, averages: SCORE_FIELDS.reduce((acc, { key }) => ({ ...acc, [key]: 0 }), {}) }
+  const teacherReviews = reviews.filter((review) => {
+    const rid = review.teacherId ?? review.teacher_id ?? review.teachersId ?? review.teachers_id ?? review.teacher?.id
+    return rid != null && Number(rid) === tid
+  })
   if (!teacherReviews.length) {
     return {
       total: 0,
@@ -285,38 +291,75 @@ export default function AdminDashboard({ onLogout, navigate }) {
 
 
   const handleDownloadStatistics = () => {
+    const getDeptName = (d) =>
+      d?.nameUz ?? d?.name_uz ?? d?.nameUZ ?? d?.name ?? d?.title ?? d?.departmentName ?? ""
+    const getFacultyName = (f) =>
+      f?.nameUz ?? f?.name_uz ?? f?.name ?? f?.title ?? f?.facultyName ?? ""
+
     const data = teachers.map((teacher) => {
-      const department = departments.find((d) => d.id === Number(teacher.departmentId))
-      const faculty = department ? faculties.find((f) => f.id === Number(department.facultyId)) : null
-      const metrics = calculateTeacherMetrics(teacher.id, reviews)
-      
+      const deptId =
+        teacher.departmentId ?? teacher.department_id ?? teacher.department?.id ?? teacher.department?.departmentId
+      let department = deptId != null ? departments.find((d) => Number(d?.id ?? d?.departmentId) === Number(deptId)) : null
+      // ID bo'lmasa, kafedra nomi orqali qidirish
+      if (!department && (teacher.departmentNameUz ?? teacher.department_name_uz ?? (typeof teacher.department === "string" && teacher.department))) {
+        const searchName = String(teacher.departmentNameUz ?? teacher.department_name_uz ?? teacher.department ?? "").trim().toLowerCase()
+        if (searchName) {
+          department = departments.find((d) => getDeptName(d).toLowerCase().trim() === searchName) ??
+            departments.find((d) => getDeptName(d).toLowerCase().includes(searchName) || searchName.includes(getDeptName(d).toLowerCase()))
+        }
+      }
+      const facultyId = department?.facultyId ?? department?.faculty_id ?? teacher.faculty?.id ?? teacher.facultyId
+      const faculty =
+        facultyId != null ? faculties.find((f) => Number(f?.id ?? f?.facultyId) === Number(facultyId)) : null
+
+      // Backend nested objectlardan ham olish
+      const deptName =
+        department ? getDeptName(department)
+        : (typeof teacher.department === "string" ? teacher.department : null) ??
+          getDeptName(teacher.department) ??
+          teacher.departmentNameUz ?? teacher.department_name_uz ?? teacher.departmentName ?? teacher.department_name ??
+          "Noma'lum"
+      const facultyName =
+        faculty ? getFacultyName(faculty)
+        : getFacultyName(teacher.faculty) ??
+          teacher.facultyNameUz ?? teacher.faculty_name_uz ?? teacher.facultyName ?? teacher.faculty_name ??
+          (department?.faculty ? getFacultyName(department.faculty) : null) ??
+          "Noma'lum"
+
+      const teacherId = teacher.id ?? teacher.teacherId ?? teacher.teacher_id
+      const metrics = calculateTeacherMetrics(teacherId, reviews)
+
       return {
-        "Fakultet": faculty ? faculty.nameUz : "Noma'lum",
-        "Kafedra": department ? department.nameUz : "Noma'lum",
-        "F.I.O": teacher.name,
-        "Tel_raqam": teacher.phone || "",
-        "Rayting": metrics.overall,
-        "Sharhlar soni": metrics.total
+        "Fakultet nomi": facultyName,
+        "Kafedra nomi": deptName,
+        "F.I.O": teacher.fullName ?? teacher.name ?? teacher.full_name ?? "",
+        "E-mail": teacher.email ?? teacher.eMail ?? "",
+        "Reytingi": metrics.overall,
+        "Sharhlari": metrics.total
       }
     })
 
-    // Ma'lumotlarni saralash: Fakultet -> Kafedra -> F.I.O
+    // Ma'lumotlarni saralash: Fakultet nomi -> Kafedra nomi -> F.I.O
     data.sort((a, b) => {
-      if (a["Fakultet"] !== b["Fakultet"]) return a["Fakultet"].localeCompare(b["Fakultet"])
-      if (a["Kafedra"] !== b["Kafedra"]) return a["Kafedra"].localeCompare(b["Kafedra"])
-      return a["F.I.O"].localeCompare(b["F.I.O"])
+      const fa = String(a["Fakultet nomi"] ?? "")
+      const fb = String(b["Fakultet nomi"] ?? "")
+      if (fa !== fb) return fa.localeCompare(fb)
+      const ka = String(a["Kafedra nomi"] ?? "")
+      const kb = String(b["Kafedra nomi"] ?? "")
+      if (ka !== kb) return ka.localeCompare(kb)
+      return String(a["F.I.O"] ?? "").localeCompare(String(b["F.I.O"] ?? ""))
     })
 
     const worksheet = XLSX.utils.json_to_sheet(data)
     
     // Ustunlar kengligini sozlash
     const wscols = [
-      { wch: 30 }, // Fakultet
-      { wch: 30 }, // Kafedra
+      { wch: 30 }, // Fakultet nomi
+      { wch: 30 }, // Kafedra nomi
       { wch: 30 }, // F.I.O
-      { wch: 20 }, // Tel_raqam
-      { wch: 10 }, // Rayting
-      { wch: 15 }  // Sharhlar soni
+      { wch: 25 }, // E-mail
+      { wch: 10 }, // Reytingi
+      { wch: 12 }  // Sharhlari
     ]
     worksheet['!cols'] = wscols
 
