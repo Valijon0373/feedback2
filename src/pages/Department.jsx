@@ -47,12 +47,27 @@ export default function Department({ id, navigate }) {
         })
         setTeachers(t)
 
-        const reviewsData =
+        let reviewsData =
           reviewsRes.status === "fulfilled" && Array.isArray(reviewsRes.value)
             ? reviewsRes.value
             : Array.isArray(mockData.reviews) ? mockData.reviews : []
-        const r = reviewsData.filter((review) => review.isActive !== false)
-        setReviews(r)
+
+        if (reviewsData.length === 0 && t.length > 0) {
+          const byTeacher = await Promise.all(
+            t.map(async (teacher) => {
+              try {
+                const revs = await reviewsApi.getByTeacherId(teacher.id)
+                return Array.isArray(revs) ? revs.filter((rev) => rev.isActive !== false) : []
+              } catch {
+                return []
+              }
+            })
+          )
+          reviewsData = byTeacher.flat()
+        } else {
+          reviewsData = reviewsData.filter((review) => review.isActive !== false)
+        }
+        setReviews(reviewsData)
       } catch (error) {
         console.error("Failed to load department data:", error)
         setDepartment(null)
@@ -113,7 +128,10 @@ export default function Department({ id, navigate }) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {teachers.map((teacher) => {
-            const teacherReviews = reviews.filter((r) => r.teacherId === teacher.id)
+            const teacherReviews = reviews.filter((r) => {
+              const rid = r.teacherId ?? r.teacher_id ?? r.teacher?.id
+              return rid != null && Number(rid) === Number(teacher.id)
+            })
             const avgRating =
               teacherReviews.length > 0
                 ? (
@@ -146,11 +164,11 @@ export default function Department({ id, navigate }) {
                   <p className="text-xs text-slate-500">Tajriba: {teacher.experience}</p>
                 )}
                 <div className="flex justify-between items-center pt-2">
-                  <span className="text-sm text-slate-500">{teacherReviews.length} sharh</span>
+                  <span className="text-sm text-slate-500">{teacherReviews.length} ta sharh</span>
                   <div className="flex items-center gap-1.5">
                     <div className="flex gap-0.5">
                       {[1, 2, 3, 4, 5].map((star) => (
-                        <span key={star} className={star <= Math.round(avgRating) ? "text-yellow-500" : "text-gray-300"} style={{ fontSize: '0.9em' }}>
+                        <span key={star} className={star <= Math.round(parseFloat(avgRating)) ? "text-yellow-500" : "text-gray-300"} style={{ fontSize: '0.9em' }}>
                           ★
                         </span>
                       ))}

@@ -479,9 +479,22 @@ export default function TeachersTable({
 
                       {/* Rating Info */}
                       <div className="mb-4 text-center">
-                        <p className="text-sm font-semibold text-yellow-400 mb-1">
-                          Reyting: {metrics.overall.toFixed(1)} / 5
-                        </p>
+                        <div className="flex items-center justify-center gap-2 mb-1">
+                          <div className="flex gap-0.5">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <span
+                                key={star}
+                                className={star <= Math.round(metrics.overall) ? "text-yellow-400" : "text-gray-500"}
+                                style={{ fontSize: "0.9em" }}
+                              >
+                                ★
+                              </span>
+                            ))}
+                          </div>
+                          <span className="text-sm font-semibold text-yellow-400">
+                            {metrics.overall.toFixed(1)} / 5
+                          </span>
+                        </div>
                         <p
                           className={`text-xs transition-colors duration-300 ${
                             isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"
@@ -667,18 +680,34 @@ export default function TeachersTable({
                 >
                   Reyting:
                 </p>
-                <div className="flex items-center gap-2">
-                  <span className="text-yellow-400 font-bold">
-                    ★ {calculateTeacherMetrics(viewTeacher.id, reviews).overall.toFixed(1)}
-                  </span>
-                  <span
-                    className={`text-sm ${
-                      isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"
-                    }`}
-                  >
-                    ({calculateTeacherMetrics(viewTeacher.id, reviews).total} ta sharh)
-                  </span>
-                </div>
+                {(() => {
+                  const metrics = calculateTeacherMetrics(viewTeacher.id, reviews)
+                  return (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex gap-0.5">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <span
+                            key={star}
+                            className={star <= Math.round(metrics.overall) ? "text-yellow-400" : "text-gray-500"}
+                            style={{ fontSize: "0.9em" }}
+                          >
+                            ★
+                          </span>
+                        ))}
+                      </div>
+                      <span className="text-yellow-400 font-bold">
+                        {metrics.overall.toFixed(1)} / 5
+                      </span>
+                      <span
+                        className={`text-sm ${
+                          isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"
+                        }`}
+                      >
+                        ({metrics.total} ta sharh)
+                      </span>
+                    </div>
+                  )
+                })()}
               </div>
             </div>
           </div>

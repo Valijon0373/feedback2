@@ -43,10 +43,11 @@ export default function Teachers({ navigate }) {
           teachersRes.status === "fulfilled" && Array.isArray(teachersRes.value)
             ? teachersRes.value
             : Array.isArray(mockData.teachers) ? mockData.teachers : []
-        const r =
+        let r =
           reviewsRes.status === "fulfilled" && Array.isArray(reviewsRes.value)
             ? reviewsRes.value
             : Array.isArray(mockData.reviews) ? mockData.reviews : []
+
         const d =
           departmentsRes.status === "fulfilled" && Array.isArray(departmentsRes.value)
             ? departmentsRes.value
@@ -66,8 +67,24 @@ export default function Teachers({ navigate }) {
           }
         })
 
+        if (r.length === 0 && enrichedTeachers.length > 0) {
+          const byTeacher = await Promise.all(
+            enrichedTeachers.map(async (teacher) => {
+              try {
+                const revs = await reviewsApi.getByTeacherId(teacher.id)
+                return Array.isArray(revs) ? revs.filter((rev) => rev.isActive !== false) : []
+              } catch {
+                return []
+              }
+            })
+          )
+          r = byTeacher.flat()
+        } else {
+          r = r.filter((rev) => rev.isActive !== false)
+        }
+
         setTeachers(enrichedTeachers)
-        setReviews(r.filter((rev) => rev.isActive !== false))
+        setReviews(r)
       } finally {
         setLoading(false)
       }
@@ -108,7 +125,10 @@ export default function Teachers({ navigate }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map((teacher) => {
-          const teacherReviews = reviews.filter((r) => r.teacherId === teacher.id)
+          const teacherReviews = reviews.filter((r) => {
+            const rid = r.teacherId ?? r.teacher_id ?? r.teacher?.id
+            return rid != null && Number(rid) === Number(teacher.id)
+          })
           const avgRating =
             teacherReviews.length > 0
               ? (
@@ -139,11 +159,11 @@ export default function Teachers({ navigate }) {
               <p className="text-xs text-slate-500">Kafedra: {teacher.department}</p>
               {teacher.experience && <p className="text-xs text-slate-500">Tajriba: {teacher.experience}</p>}
               <div className="flex justify-between items-center pt-2">
-                <span className="text-sm text-slate-500">{teacherReviews.length} sharh</span>
+                <span className="text-sm text-slate-500">{teacherReviews.length} ta sharh</span>
                 <div className="flex items-center gap-1.5">
                   <div className="flex gap-0.5">
                     {[1, 2, 3, 4, 5].map((star) => (
-                      <span key={star} className={star <= Math.round(avgRating) ? "text-yellow-500" : "text-gray-300"} style={{ fontSize: '0.9em' }}>
+                      <span key={star} className={star <= Math.round(parseFloat(avgRating)) ? "text-yellow-500" : "text-gray-300"} style={{ fontSize: '0.9em' }}>
                         ★
                       </span>
                     ))}
