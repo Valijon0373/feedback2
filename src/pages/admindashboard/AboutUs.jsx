@@ -10,8 +10,8 @@ export default function AboutUsjsx({ isDarkMode }) {
         "Talabalar uchun qulay, tez va zamonaviy interfeys yaratish bilan shug'ullanadi. Dizayn va foydalanuvchi tajribasi bo'yicha mas'ul.",
       avatarColor: "from-purple-500 to-pink-500",
       instagram: "#",
-      telegram: "#",
-      github: "#",
+      telegram: "https://t.me/Val1jon_0373",
+      github: "https://github.com/Valijon0373",
     },
     {
       name: "Otaboyev Akbar",
@@ -20,7 +20,7 @@ export default function AboutUsjsx({ isDarkMode }) {
         "Ushbu platformani yaratish va texnik infratuzilmasini yo'lga qo'yish rolni bajaradi. Backend va ma'lumotlar bazasi bo'yicha mutaxassis.",
       avatarColor: "from-blue-500 to-cyan-400",
       instagram: "#",
-      telegram: "#",
+      telegram: "https://t.me/AkbarOtaboev",
       github: "#",
     },
   ]

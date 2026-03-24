@@ -27,6 +27,7 @@ import {
   Landmark,
   CheckCircle2,
   Download,
+  ChevronDown,
 } from "lucide-react"
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import * as XLSX from "xlsx"
@@ -100,6 +101,54 @@ const calculateTeacherMetrics = (teacherId, reviews) => {
 }
 
 export default function AdminDashboard({ onLogout, navigate }) {
+  const getAdminAuthFromLocalStorage = () => {
+    if (typeof window === "undefined") return null
+    try {
+      const raw = window.localStorage.getItem("adminAuth")
+      if (!raw) return null
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
+  }
+
+  const [authUser] = useState(() => {
+    const auth = getAdminAuthFromLocalStorage()
+    const user = auth?.user || {}
+
+    const username = user?.username ?? user?.email ?? user?.name ?? ""
+    const role =
+      user?.role ??
+      user?.userRole ??
+      user?.type ??
+      user?.user_type ??
+      auth?.role ??
+      auth?.userRole ??
+      auth?.type ??
+      ""
+    return { username, role }
+  })
+
+  const normalizedRole = String(authUser?.role || "").toLowerCase().trim()
+
+  // UI ruxsatlari faqat login natijasidagi backend roliga bog'liq.
+  const isLimitedUser =
+    normalizedRole === "user" ||
+    normalizedRole === "viewer" ||
+    normalizedRole === "staff" ||
+    normalizedRole === "role_user" ||
+    normalizedRole === "role-user" ||
+    normalizedRole.includes("role_user") ||
+    normalizedRole.endsWith("_user")
+
+  useEffect(() => {
+    console.log("[AdminDashboard] detected role:", {
+      rawRole: authUser?.role || null,
+      normalizedRole,
+      uiRole: isLimitedUser ? "user" : "admin",
+    })
+  }, [authUser?.role, normalizedRole, isLimitedUser])
+
   const [activeTab, setActiveTab] = useState("faculties")
   const [activeNavItem, setActiveNavItem] = useState("dashboard")
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -150,6 +199,23 @@ export default function AdminDashboard({ onLogout, navigate }) {
   const [successMessage, setSuccessMessage] = useState("")
   const successTimeoutRef = useRef(null)
   const [createdTeacherLink, setCreatedTeacherLink] = useState("")
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuWrapRef = useRef(null)
+
+  const userDisplayName = authUser?.username || "admin"
+  const userInitials = useMemo(() => {
+    const name = String(userDisplayName || "").trim()
+    if (!name) return "AD"
+    const parts = name.split(/\s+/).filter(Boolean)
+    if (parts.length >= 2) return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase()
+    return name.slice(0, 2).toUpperCase()
+  }, [userDisplayName])
+
+  useEffect(() => {
+    if (!isLimitedUser) return
+    setActiveNavItem("doctors")
+    setActiveTab("teachers")
+  }, [isLimitedUser])
 
   const loadMockData = () => {
     // No longer read mock data from localStorage (prevents stale cached demo data).
@@ -760,7 +826,7 @@ export default function AdminDashboard({ onLogout, navigate }) {
     setViewReview(review)
   }
 
-  const navItems = [
+  const baseNavItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "categories", label: "Fakultetlar", icon: Landmark },
     { id: "departments", label: "Kafedralar", icon: GraduationCap },
@@ -769,7 +835,19 @@ export default function AdminDashboard({ onLogout, navigate }) {
     { id: "about", label: "Biz haqimizda", icon: Info },
   ]
 
+  const allowedNavIds = isLimitedUser
+    ? ["dashboard", "doctors", "about"]
+    : ["dashboard", "categories", "departments", "doctors", "news", "about"]
+
+  const navItems = baseNavItems.filter((item) => allowedNavIds.includes(item.id))
+
   const handleNavClick = (itemId) => {
+    if (isLimitedUser && !["dashboard", "doctors", "about"].includes(itemId)) {
+      setActiveNavItem("dashboard")
+      setActiveTab("faculties")
+      return
+    }
+
     setActiveNavItem(itemId)
     if (itemId === "doctors" || itemId === "dashboard" || itemId === "categories") {
       if (itemId === "doctors") {
@@ -788,6 +866,31 @@ export default function AdminDashboard({ onLogout, navigate }) {
       document.documentElement.classList.toggle("dark", newTheme)
     }
   }
+
+  // Close user dropdown on outside click / Esc
+  useEffect(() => {
+    if (!userMenuOpen) return
+    if (typeof window === "undefined") return
+
+    const onMouseDown = (e) => {
+      if (!userMenuWrapRef.current) return
+      const target = e.target
+      if (userMenuWrapRef.current.contains(target)) return
+      setUserMenuOpen(false)
+    }
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") setUserMenuOpen(false)
+    }
+
+    document.addEventListener("mousedown", onMouseDown)
+    window.addEventListener("keydown", onKeyDown)
+
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown)
+      window.removeEventListener("keydown", onKeyDown)
+    }
+  }, [userMenuOpen])
 
   // Apply theme on mount and add modal animations
   useEffect(() => {
@@ -949,25 +1052,64 @@ export default function AdminDashboard({ onLogout, navigate }) {
               >
                 {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
-              <div className="text-right">
-                <p
-                  className={`text-sm font-semibold transition-colors duration-300 ${isDarkMode ? "text-white" : "text-slate-900"}`}
-                >
-                  admin
-                </p>
-                <p
-                  className={`text-xs transition-colors duration-300 ${isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"}`}
-                >
-                  Superuser
-                </p>
-              </div>
+            <div className="relative" ref={userMenuWrapRef}>
               <button
-                onClick={onLogout}
-                className={`transition-colors ${isDarkMode ? "text-[#8b9ba8] hover:text-white" : "text-slate-600 hover:text-slate-900"}`}
-                title="Chiqish"
+                type="button"
+                onClick={() => setUserMenuOpen((v) => !v)}
+                className={`inline-flex items-center gap-3 px-2 py-1.5 rounded-xl border transition-colors duration-200 ${
+                  isDarkMode
+                    ? "bg-[#0e1a22] border-[#1a2d3a] hover:border-white/20"
+                    : "bg-white border-slate-200 hover:border-slate-300"
+                }`}
+                aria-expanded={userMenuOpen}
+                aria-haspopup="menu"
+                title="Admin profil"
               >
-                <LogOut className="w-5 h-5" />
+                <div
+                  className="w-9 h-9 rounded-full flex items-center justify-center font-semibold text-sm text-white bg-gradient-to-tr from-blue-500 to-purple-600"
+                  aria-hidden="true"
+                >
+                  {userInitials}
+                </div>
+                <p
+                  className={`text-sm font-semibold transition-colors duration-200 ${
+                    isDarkMode ? "text-white" : "text-slate-900"
+                  }`}
+                >
+                  {userDisplayName}
+                </p>
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform ${
+                    userMenuOpen ? "rotate-180" : ""
+                  } ${isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"}`}
+                />
               </button>
+
+              {userMenuOpen && (
+                <div
+                  role="menu"
+                  className={`absolute right-0 top-full mt-2 min-w-full rounded-xl shadow-lg border p-2 z-50 ${
+                    isDarkMode ? "bg-[#14232c] border-[#1a2d3a]" : "bg-white border-slate-200"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserMenuOpen(false)
+                      onLogout()
+                    }}
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border transition-colors duration-200 ${
+                      isDarkMode
+                        ? "border-[#1a2d3a] hover:bg-[#0e1a22] text-red-400"
+                        : "border-slate-200 hover:bg-slate-50 text-red-600"
+                    }`}
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span className="text-sm font-medium">Chiqish</span>
+                  </button>
+                </div>
+              )}
+            </div>
             </div>
           </div>
         </header>
@@ -979,6 +1121,7 @@ export default function AdminDashboard({ onLogout, navigate }) {
           <div className="max-w-7xl mx-auto">
 
             {activeNavItem === "dashboard" && (
+              <>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
               <div
                 className={`${isDarkMode ? "bg-[#14232c] border-[#1a2d3a]" : "bg-white border-slate-200"} border rounded-lg p-4 transition-colors duration-300`}
@@ -1041,6 +1184,8 @@ export default function AdminDashboard({ onLogout, navigate }) {
                 </p>
               </div>
             </div>
+
+              </>
             )}
 
             {/* Charts Section */}
@@ -1178,6 +1323,7 @@ export default function AdminDashboard({ onLogout, navigate }) {
           {activeNavItem === "doctors" && (
             <TeachersTable
               isDarkMode={isDarkMode}
+              isLimitedUser={isLimitedUser}
               teachers={teachers}
               reviews={reviews}
               departments={departments}

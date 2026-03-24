@@ -524,13 +524,26 @@ export const departmentsApi = {
 export const teachersApi = {
   getAll: async () => {
     try {
-      const data = await apiFetch(hasAdminToken() ? "/api/teachers" : "/api/view/teachers/all", {
-        method: "GET",
-        auth: hasAdminToken(),
-      })
+      const hasToken = hasAdminToken()
+      let data
+      let usedPublicEndpoint = !hasToken
+
+      try {
+        data = await apiFetch(hasToken ? "/api/teachers" : "/api/view/teachers/all", {
+          method: "GET",
+          auth: hasToken,
+        })
+      } catch (e) {
+        const status = e?.status
+        const canRetryPublic = hasToken && (status === 401 || status === 403 || status === 404)
+        if (!canRetryPublic) throw e
+        data = await apiFetch("/api/view/teachers/all", { method: "GET", auth: false })
+        usedPublicEndpoint = true
+      }
+
       const list = unwrapList(data)
       if (list) {
-        if (!hasAdminToken()) {
+        if (usedPublicEndpoint) {
           const departments = await departmentsApi.getAll()
           const map = new Map(
             (Array.isArray(departments) ? departments : [])
@@ -550,13 +563,26 @@ export const teachersApi = {
 
   getById: async (id) => {
     try {
-      const data = await apiFetch(hasAdminToken() ? `/api/teachers/${id}` : `/api/view/teachers/${id}`, {
-        method: "GET",
-        auth: hasAdminToken(),
-      })
+      const hasToken = hasAdminToken()
+      let data
+      let usedPublicEndpoint = !hasToken
+
+      try {
+        data = await apiFetch(hasToken ? `/api/teachers/${id}` : `/api/view/teachers/${id}`, {
+          method: "GET",
+          auth: hasToken,
+        })
+      } catch (e) {
+        const status = e?.status
+        const canRetryPublic = hasToken && (status === 401 || status === 403 || status === 404)
+        if (!canRetryPublic) throw e
+        data = await apiFetch(`/api/view/teachers/${id}`, { method: "GET", auth: false })
+        usedPublicEndpoint = true
+      }
+
       const one = unwrapOne(data) || null
       if (!one) return null
-      if (!hasAdminToken()) {
+      if (usedPublicEndpoint) {
         const departments = await departmentsApi.getAll()
         const map = new Map(
           (Array.isArray(departments) ? departments : [])
@@ -574,15 +600,31 @@ export const teachersApi = {
   getByDepartmentId: async (departmentId) => {
     const local = state.teachers.filter((t) => Number(t.departmentId) === Number(departmentId))
     try {
-      const data = await apiFetch(
-        hasAdminToken()
-          ? `/api/teachers/department/${departmentId}`
-          : `/api/view/departments/${departmentId}/teachers`,
-        { method: "GET", auth: hasAdminToken() },
-      )
+      const hasToken = hasAdminToken()
+      let data
+      let usedPublicEndpoint = !hasToken
+
+      try {
+        data = await apiFetch(
+          hasToken
+            ? `/api/teachers/department/${departmentId}`
+            : `/api/view/departments/${departmentId}/teachers`,
+          { method: "GET", auth: hasToken },
+        )
+      } catch (e) {
+        const status = e?.status
+        const canRetryPublic = hasToken && (status === 401 || status === 403 || status === 404)
+        if (!canRetryPublic) throw e
+        data = await apiFetch(`/api/view/departments/${departmentId}/teachers`, {
+          method: "GET",
+          auth: false,
+        })
+        usedPublicEndpoint = true
+      }
+
       const list = unwrapList(data)
       if (list) {
-        if (!hasAdminToken()) {
+        if (usedPublicEndpoint) {
           return list.map((t) => normalizeTeacherPublic(t, { defaultDepartmentId: Number(departmentId) }))
         }
         return list
@@ -1005,8 +1047,53 @@ export const authApi = {
       auth: false,
     })
 
-    const accessToken = data?.accessToken || data?.access_token || data?.token || ""
-    const refreshToken = data?.refreshToken || data?.refresh_token || ""
+    const decodeJwtPayload = (token) => {
+      try {
+        const [, payloadPart] = String(token || "").split(".")
+        if (!payloadPart) return null
+        const base64 = payloadPart.replace(/-/g, "+").replace(/_/g, "/")
+        const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4)
+        const json = atob(padded)
+        return JSON.parse(json)
+      } catch {
+        return null
+      }
+    }
+
+    const pickRole = (...candidates) => {
+      for (const c of candidates) {
+        if (typeof c === "string" && c.trim()) return c.trim()
+        if (Array.isArray(c) && c.length) {
+          const first = c[0]
+          if (typeof first === "string" && first.trim()) return first.trim()
+          if (first && typeof first === "object") {
+            const fromObj = first.authority || first.role || first.name
+            if (typeof fromObj === "string" && fromObj.trim()) return fromObj.trim()
+          }
+        }
+      }
+      return ""
+    }
+
+    const accessToken =
+      data?.accessToken ||
+      data?.access_token ||
+      data?.token ||
+      data?.data?.accessToken ||
+      data?.data?.access_token ||
+      data?.data?.token ||
+      data?.content?.accessToken ||
+      data?.content?.access_token ||
+      data?.content?.token ||
+      ""
+    const refreshToken =
+      data?.refreshToken ||
+      data?.refresh_token ||
+      data?.data?.refreshToken ||
+      data?.data?.refresh_token ||
+      data?.content?.refreshToken ||
+      data?.content?.refresh_token ||
+      ""
 
     if (!accessToken || !String(accessToken).trim()) {
       const err = new Error("Token kelmadi. Login server javobini tekshiring.")
@@ -1014,11 +1101,38 @@ export const authApi = {
       throw err
     }
 
+    const jwtPayload = decodeJwtPayload(accessToken)
+    const userFromResponse = data?.user || data?.data?.user || data?.content?.user || {}
+    const role = pickRole(
+      userFromResponse?.role,
+      userFromResponse?.userRole,
+      data?.role,
+      data?.userRole,
+      data?.data?.role,
+      data?.data?.userRole,
+      data?.content?.role,
+      data?.content?.userRole,
+      jwtPayload?.role,
+      jwtPayload?.userRole,
+      jwtPayload?.roles,
+      jwtPayload?.authorities,
+      jwtPayload?.scope,
+    )
+
     const loginTime = new Date().toISOString()
     const payload = {
       accessToken,
       refreshToken,
-      user: data?.user || { username },
+      user: {
+        username:
+          userFromResponse?.username ||
+          userFromResponse?.email ||
+          userFromResponse?.name ||
+          username,
+        role,
+        ...userFromResponse,
+      },
+      role,
       loginTime,
     }
     saveAdminAuth(payload)

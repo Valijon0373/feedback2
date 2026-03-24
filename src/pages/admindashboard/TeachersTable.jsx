@@ -4,6 +4,7 @@ import StarRating from "../../components/StarRating"
 
 export default function TeachersTable({
   isDarkMode,
+  isLimitedUser,
   teachers,
   reviews,
   departments,
@@ -209,28 +210,6 @@ export default function TeachersTable({
               </div>
               <div>
                 <label
-                  className={`block text-sm font-medium mb-1 transition-colors duration-300 ${
-                    isDarkMode ? "text-white" : "text-slate-900"
-                  }`}
-                >
-                  Telefon raqam
-                </label>
-                <input
-                  type="tel"
-                  value={teacherForm.phone}
-                  onChange={(event) =>
-                    setTeacherForm({ ...teacherForm, phone: event.target.value })
-                  }
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-[#00d4aa] transition-colors duration-300 ${
-                    isDarkMode
-                      ? "bg-[#0e1a22] border-[#1a2d3a] text-white"
-                      : "bg-white border-slate-300 text-slate-900"
-                  }`}
-                  placeholder="+998 90 123 45 67"
-                />
-              </div>
-              <div>
-                <label
                   className={`block text-sm font-medium mb-1 
                     transition-colors duration-300 ${
                     isDarkMode ? "text-white" : "text-slate-900"
@@ -250,28 +229,6 @@ export default function TeachersTable({
                       : "bg-white border-slate-300 text-slate-900"
                   }`}
                   placeholder="example@gmail.com"
-                />
-              </div>
-              <div>
-                <label
-                  className={`block text-sm font-medium mb-1 transition-colors duration-300 ${
-                    isDarkMode ? "text-white" : "text-slate-900"
-                  }`}
-                >
-                  Qisqacha ma&apos;lumot (bio)
-                </label>
-                <textarea
-                  value={teacherForm.bio}
-                  onChange={(event) =>
-                    setTeacherForm({ ...teacherForm, bio: event.target.value })
-                  }
-                  rows={3}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-[#00d4aa] transition-colors duration-300 ${
-                    isDarkMode
-                      ? "bg-[#0e1a22] border-[#1a2d3a] text-white"
-                      : "bg-white border-slate-300 text-slate-900"
-                  }`}
-                  placeholder="O'qituvchi haqida qisqacha ma'lumot"
                 />
               </div>
               <div>
@@ -342,13 +299,15 @@ export default function TeachersTable({
               O&apos;qituvchilar Ro&apos;yxati
             </h2>
             <div className="flex items-center gap-3">
-              <button
-                onClick={handleDownloadStatistics}
-                className="flex items-center gap-2 px-4 py-2 border border-[#00d4aa] text-[#00d4aa] rounded-xl font-medium hover:bg-[#00d4aa] hover:text-white transition-all duration-200 shadow-md hover:shadow-lg"
-              >
-                <Download className="w-4 h-4" />
-                Statistika
-              </button>
+              {!isLimitedUser && (
+                <button
+                  onClick={handleDownloadStatistics}
+                  className="flex items-center gap-2 px-4 py-2 border border-[#00d4aa] text-[#00d4aa] rounded-xl font-medium hover:bg-[#00d4aa] hover:text-white transition-all duration-200 shadow-md hover:shadow-lg"
+                >
+                  <Download className="w-4 h-4" />
+                  Statistika
+                </button>
+              )}
               <button
                 onClick={() => {
                   resetTeacherForm()
@@ -363,46 +322,48 @@ export default function TeachersTable({
           </div>
 
           {/* Search Input */}
-          <div className="mb-6">
-            <div className="flex gap-3">
-              <div className="relative flex-1">
-                <Search
-                  className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${
-                    isDarkMode ? "text-[#8b9ba8]" : "text-slate-400"
-                  }`}
-                />
-                <input
-                  type="text"
-                  value={teacherSearchQuery}
-                  onChange={(e) => setTeacherSearchQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault()
-                      setTeacherSearchTerm(teacherSearchQuery)
-                    }
-                  }}
-                  placeholder="O'qituvchi qidirish..."
-                  className={`w-full pl-10 pr-4 py-2.5 border-2 border-blue-500 rounded-full focus:outline-none focus:border-blue-600 transition-colors duration-300 ${
-                    isDarkMode
-                      ? "bg-[#0e1a22] text-white placeholder:text-[#8b9ba8]"
-                      : "bg-white text-slate-900 placeholder:text-slate-400"
-                  }`}
-                />
+          {!isLimitedUser && (
+            <div className="mb-6">
+              <div className="flex gap-3">
+                <div className="relative flex-1">
+                  <Search
+                    className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${
+                      isDarkMode ? "text-[#8b9ba8]" : "text-slate-400"
+                    }`}
+                  />
+                  <input
+                    type="text"
+                    value={teacherSearchQuery}
+                    onChange={(e) => setTeacherSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        setTeacherSearchTerm(teacherSearchQuery)
+                      }
+                    }}
+                    placeholder="O'qituvchi qidirish..."
+                    className={`w-full pl-10 pr-4 py-2.5 border-2 border-blue-500 rounded-full focus:outline-none focus:border-blue-600 transition-colors duration-300 ${
+                      isDarkMode
+                        ? "bg-[#0e1a22] text-white placeholder:text-[#8b9ba8]"
+                        : "bg-white text-slate-900 placeholder:text-slate-400"
+                    }`}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTeacherSearchTerm(teacherSearchQuery)}
+                  className="px-6 py-2.5 border-2 border-blue-500 text-blue-500 rounded-full font-medium hover:bg-blue-500 hover:text-white transition-all duration-200 whitespace-nowrap"
+                >
+                  Qidirish
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setTeacherSearchTerm(teacherSearchQuery)}
-                className="px-6 py-2.5 border-2 border-blue-500 text-blue-500 rounded-full font-medium hover:bg-blue-500 hover:text-white transition-all duration-200 whitespace-nowrap"
-              >
-                Qidirish
-              </button>
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {teachers
               .filter((teacher) => {
-                if (!teacherSearchTerm.trim()) return true
+                if (isLimitedUser || !teacherSearchTerm.trim()) return true
                 const query = teacherSearchTerm.toLowerCase()
                 const name = (teacher.fullName || teacher.name || "").toLowerCase()
                 const title = (teacher.position || teacher.title || "").toLowerCase()
@@ -416,121 +377,121 @@ export default function TeachersTable({
                 )
               })
               .map((teacher) => {
-                const metrics = calculateTeacherMetrics(teacher.id, reviews)
-                return (
-                  <div
-                    key={teacher.id}
-                    className={`rounded-xl border overflow-hidden transition-all duration-300 hover:shadow-lg ${
-                      isDarkMode ? "bg-[#14232c] border-[#1a2d3a]" : "bg-white border-slate-200"
-                    }`}
-                  >
-                    {/* Gradient Header */}
-                    <div className="h-24 bg-gradient-to-r from-blue-500 to-purple-600 relative">
-                      {/* Profile Picture */}
-                      <div className="absolute left-1/2 -translate-x-1/2 -bottom-12">
-                        <div
-                          className="w-24 h-24 rounded-full border-4 overflow-hidden bg-gray-200"
-                          style={{ borderColor: isDarkMode ? "#14232c" : "#fff" }}
-                        >
-                          <img
-                            src={
-                              buildImageUrl(
-                                teacher.imageLink ||
-                                  teacher.imageUrl ||
-                                  teacher.image ||
-                                  teacher.photo ||
-                                  teacher.avatar ||
-                                  "",
-                              ) ||
-                              `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                teacher.fullName || teacher.name || "?"
-                              )}&size=96&background=6366f1&color=fff`
-                            }
-                            alt={teacher.fullName || teacher.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                teacher.fullName || teacher.name || "?"
-                              )}&size=96&background=6366f1&color=fff`
-                            }}
-                          />
+                    const metrics = calculateTeacherMetrics(teacher.id, reviews)
+                    return (
+                      <div
+                        key={teacher.id}
+                        className={`rounded-xl border overflow-hidden transition-all duration-300 hover:shadow-lg ${
+                          isDarkMode ? "bg-[#14232c] border-[#1a2d3a]" : "bg-white border-slate-200"
+                        }`}
+                      >
+                        {/* Gradient Header */}
+                        <div className="h-24 bg-gradient-to-r from-blue-500 to-purple-600 relative">
+                          {/* Profile Picture */}
+                          <div className="absolute left-1/2 -translate-x-1/2 -bottom-12">
+                            <div
+                              className="w-24 h-24 rounded-full border-4 overflow-hidden bg-gray-200"
+                              style={{ borderColor: isDarkMode ? "#14232c" : "#fff" }}
+                            >
+                              <img
+                                src={
+                                  buildImageUrl(
+                                    teacher.imageLink ||
+                                      teacher.imageUrl ||
+                                      teacher.image ||
+                                      teacher.photo ||
+                                      teacher.avatar ||
+                                      "",
+                                  ) ||
+                                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                    teacher.fullName || teacher.name || "?"
+                                  )}&size=96&background=6366f1&color=fff`
+                                }
+                                alt={teacher.fullName || teacher.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                    teacher.fullName || teacher.name || "?"
+                                  )}&size=96&background=6366f1&color=fff`
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Content Section */}
+                        <div className="pt-16 pb-4 px-6">
+                          {/* Name and Title */}
+                          <div className="text-center mb-4">
+                            <h3
+                              className={`text-xl font-bold mb-1 transition-colors duration-300 ${
+                                isDarkMode ? "text-white" : "text-slate-900"
+                              }`}
+                            >
+                              {teacher.fullName || teacher.name}
+                            </h3>
+                            <p
+                              className={`text-sm transition-colors duration-300 ${
+                                isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"
+                              }`}
+                            >
+                              {teacher.position || teacher.title || "O&apos;qituvchi"}
+                            </p>
+                          </div>
+
+                          {/* Rating Info */}
+                          <div className="mb-4 text-center">
+                            <div className="flex items-center justify-center gap-2 mb-1">
+                              <StarRating rating={metrics.overall} size="sm" />
+                              <span className="text-sm font-semibold text-yellow-400">
+                                {metrics.overall.toFixed(1)} / 5
+                              </span>
+                            </div>
+                            <p
+                              className={`text-xs transition-colors duration-300 ${
+                                isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"
+                              }`}
+                            >
+                              {metrics.total} ta sharh
+                            </p>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex gap-2 mt-6">
+                            <button
+                              type="button"
+                              onClick={() => handleViewTeacher(teacher)}
+                              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border transition-all duration-200 text-blue-500 border-blue-500/30 hover:bg-blue-500/10 ${
+                                isDarkMode ? "bg-[#0e1a22]" : "bg-white"
+                              }`}
+                            >
+                              <Eye className="w-4 h-4" />
+                              <span className="text-sm font-medium">Ko&apos;rish</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleEditTeacher(teacher)}
+                              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border transition-all duration-200 text-green-500 border-green-500/30 hover:bg-green-500/10 ${
+                                isDarkMode ? "bg-[#0e1a22]" : "bg-white"
+                              }`}
+                            >
+                              <Pencil className="w-4 h-4" />
+                              <span className="text-sm font-medium">Tahrirlash</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteTeacher(teacher.id)}
+                              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border transition-all duration-200 text-red-500 border-red-500/30 hover:bg-red-500/10 ${
+                                isDarkMode ? "bg-[#0e1a22]" : "bg-white"
+                              }`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span className="text-sm font-medium">O&apos;chirish</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-
-                    {/* Content Section */}
-                    <div className="pt-16 pb-4 px-6">
-                      {/* Name and Title */}
-                      <div className="text-center mb-4">
-                        <h3
-                          className={`text-xl font-bold mb-1 transition-colors duration-300 ${
-                            isDarkMode ? "text-white" : "text-slate-900"
-                          }`}
-                        >
-                          {teacher.fullName || teacher.name}
-                        </h3>
-                        <p
-                          className={`text-sm transition-colors duration-300 ${
-                            isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"
-                          }`}
-                        >
-                          {teacher.position || teacher.title || "O'qituvchi"}
-                        </p>
-                      </div>
-
-                      {/* Rating Info */}
-                      <div className="mb-4 text-center">
-                        <div className="flex items-center justify-center gap-2 mb-1">
-                          <StarRating rating={metrics.overall} size="sm" />
-                          <span className="text-sm font-semibold text-yellow-400">
-                            {metrics.overall.toFixed(1)} / 5
-                          </span>
-                        </div>
-                        <p
-                          className={`text-xs transition-colors duration-300 ${
-                            isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"
-                          }`}
-                        >
-                          {metrics.total} ta sharh
-                        </p>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex gap-2 mt-6">
-                        <button
-                          type="button"
-                          onClick={() => handleViewTeacher(teacher)}
-                          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border transition-all duration-200 text-blue-500 border-blue-500/30 hover:bg-blue-500/10 ${
-                            isDarkMode ? "bg-[#0e1a22]" : "bg-white"
-                          }`}
-                        >
-                          <Eye className="w-4 h-4" />
-                          <span className="text-sm font-medium">Ko&apos;rish</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleEditTeacher(teacher)}
-                          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border transition-all duration-200 text-green-500 border-green-500/30 hover:bg-green-500/10 ${
-                            isDarkMode ? "bg-[#0e1a22]" : "bg-white"
-                          }`}
-                        >
-                          <Pencil className="w-4 h-4" />
-                          <span className="text-sm font-medium">Tahrirlash</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteTeacher(teacher.id)}
-                          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border transition-all duration-200 text-red-500 border-red-500/30 hover:bg-red-500/10 ${
-                            isDarkMode ? "bg-[#0e1a22]" : "bg-white"
-                          }`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <span className="text-sm font-medium">O&apos;chirish</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )
+                    )
               })}
           </div>
         </div>
