@@ -169,6 +169,7 @@ export default function TeachersTable({
                   <option value="">Lavozim tanlang</option>
                   <option value="Kafedra Mudiri">Kafedra Mudiri</option>
                   <option value="Dekan">Dekan</option>
+                  <option value="Professor">Professor</option>
                   <option value="Dekan o'rinbosari">Dekan o'rinbosari</option>
                   <option value="Dotsent">Dotsent</option>
                   <option value="Katta o'qituvchi">Katta o'qituvchi</option>
