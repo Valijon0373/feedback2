@@ -1,14 +1,16 @@
-import { useState, useEffect } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Search } from "lucide-react"
 import { mockData } from "../data/mockData"
 import { teachersApi, reviewsApi, departmentsApi, buildImageUrl } from "../lib/api"
 import StarRating from "../components/StarRating"
 
 export default function Teachers({ navigate }) {
+  const PAGE_SIZE = 12
   const [searchTerm, setSearchTerm] = useState("")
   const [teachers, setTeachers] = useState([])
   const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   const getTeacherImageSrc = (t) => {
     const raw =
@@ -93,14 +95,29 @@ export default function Teachers({ navigate }) {
     loadData()
   }, [])
 
-  if (loading) return <div className="text-center text-slate-600 py-8">Yuklanmoqda...</div>
+  useEffect(() => {
+    // Search natijalarida ko‘proq yuklashni qayta boshlash uchun.
+    setVisibleCount(PAGE_SIZE)
+  }, [searchTerm])
 
-  const filtered = teachers.filter(
-    (t) =>
-      getTeacherDisplayName(t).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (t.department || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (t.specialization || "").toLowerCase().includes(searchTerm.toLowerCase()),
+  const filtered = useMemo(
+    () =>
+      teachers.filter(
+        (t) =>
+          getTeacherDisplayName(t).toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (t.department || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (t.specialization || "").toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    [teachers, searchTerm],
   )
+
+  const displayedTeachers = filtered.slice(0, visibleCount)
+
+  const handleLoadMore = () => {
+    setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filtered.length))
+  }
+
+  if (loading) return <div className="text-center text-slate-600 py-8">Yuklanmoqda...</div>
 
   return (
     <div>
@@ -125,7 +142,7 @@ export default function Teachers({ navigate }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.map((teacher) => {
+        {displayedTeachers.map((teacher) => {
           const teacherReviews = reviews.filter((r) => {
             const rid = r.teacherId ?? r.teacher_id ?? r.teacher?.id
             return rid != null && Number(rid) === Number(teacher.id)
@@ -176,6 +193,18 @@ export default function Teachers({ navigate }) {
           )
         })}
       </div>
+
+      {filtered.length > PAGE_SIZE && visibleCount < filtered.length && (
+        <div className="flex justify-center mt-8">
+          <button
+            type="button"
+            onClick={handleLoadMore}
+            className="px-8 py-3 border-2 border-blue-600 text-blue-600 rounded-full hover:bg-blue-600 hover:text-white transition-colors whitespace-nowrap"
+          >
+            Ko'proq
+          </button>
+        </div>
+      )}
     </div>
   )
 }
