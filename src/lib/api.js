@@ -804,7 +804,10 @@ export const reviewsApi = {
       rating: overall,
       // Admin UI expects isActive to be truthy for visible reviews.
       // Backend schema doesn't include it, so default to true unless explicitly false.
-      isActive: fb.isActive ?? fb.active ?? fb.status === "DELETED" ? false : true,
+      isActive:
+        fb.isActive ??
+        fb.active ??
+        (fb.status === "DELETED" ? false : true),
       scores: {
         knowledge: Number(ball1 ?? 0),
         teaching: Number(ball2 ?? 0),

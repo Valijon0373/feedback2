@@ -65,13 +65,36 @@ const formatDate = (dateString) => {
     .replace(",", "")
 }
 
+const isReviewActive = (review) => {
+  if (!review) return false
+  // Ba'zi eski ma'lumotlarda isActive bo'lmasligi mumkin — ularni faol deb qabul qilamiz
+  const v = review.isActive
+  if (v === undefined || v === null) return true
+  return Boolean(v)
+}
+
+const normalizeId = (v) => {
+  if (v === undefined || v === null) return null
+  const s = String(v).trim()
+  return s ? s : null
+}
+
+const idsEqual = (a, b) => {
+  const sa = normalizeId(a)
+  const sb = normalizeId(b)
+  if (!sa || !sb) return false
+
+  const na = Number(sa)
+  const nb = Number(sb)
+  if (!Number.isNaN(na) && !Number.isNaN(nb)) return na === nb
+  return sa === sb
+}
+
 const calculateTeacherMetrics = (teacherId, reviews) => {
   if (teacherId == null || teacherId === "") return { total: 0, overall: 0, averages: SCORE_FIELDS.reduce((acc, { key }) => ({ ...acc, [key]: 0 }), {}) }
-  const tid = Number(teacherId)
-  if (Number.isNaN(tid)) return { total: 0, overall: 0, averages: SCORE_FIELDS.reduce((acc, { key }) => ({ ...acc, [key]: 0 }), {}) }
   const teacherReviews = reviews.filter((review) => {
     const rid = review.teacherId ?? review.teacher_id ?? review.teachersId ?? review.teachers_id ?? review.teacher?.id
-    return rid != null && Number(rid) === tid
+    return idsEqual(rid, teacherId)
   })
   if (!teacherReviews.length) {
     return {
@@ -362,6 +385,8 @@ export default function AdminDashboard({ onLogout, navigate }) {
     const getFacultyName = (f) =>
       f?.nameUz ?? f?.name_uz ?? f?.name ?? f?.title ?? f?.facultyName ?? ""
 
+    const activeReviews = reviews.filter(isReviewActive)
+
     const data = teachers.map((teacher) => {
       const deptId =
         teacher.departmentId ?? teacher.department_id ?? teacher.department?.id ?? teacher.department?.departmentId
@@ -393,7 +418,7 @@ export default function AdminDashboard({ onLogout, navigate }) {
           "Noma'lum"
 
       const teacherId = teacher.id ?? teacher.teacherId ?? teacher.teacher_id
-      const metrics = calculateTeacherMetrics(teacherId, reviews)
+      const metrics = calculateTeacherMetrics(teacherId, activeReviews)
 
       return {
         "Fakultet nomi": facultyName,
@@ -435,7 +460,7 @@ export default function AdminDashboard({ onLogout, navigate }) {
   }
 
   const stats = useMemo(() => {
-    const activeReviews = reviews.filter((r) => r.isActive)
+    const activeReviews = reviews.filter(isReviewActive)
     const avg =
       activeReviews.length > 0
         ? (
@@ -458,7 +483,7 @@ export default function AdminDashboard({ onLogout, navigate }) {
   // Chart data for Pie Chart - Rating distribution
   const ratingDistribution = useMemo(() => {
     const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
-    reviews.forEach((review) => {
+    reviews.filter(isReviewActive).forEach((review) => {
       const rating = Math.round(review.scores?.overall ?? review.rating ?? 0)
       if (rating >= 1 && rating <= 5) {
         distribution[rating] = (distribution[rating] || 0) + 1
@@ -488,10 +513,11 @@ export default function AdminDashboard({ onLogout, navigate }) {
 
   // Chart data for Bar Chart - Average ratings by category
   const ratingsByCategory = useMemo(() => {
-    if (reviews.length === 0) return []
+    const activeReviews = reviews.filter(isReviewActive)
+    if (activeReviews.length === 0) return []
     const categoryTotals = SCORE_FIELDS.reduce((acc, { key }) => ({ ...acc, [key]: { sum: 0, count: 0 } }), {})
     
-    reviews.forEach((review) => {
+    activeReviews.forEach((review) => {
       SCORE_FIELDS.forEach(({ key }) => {
         const score = review.scores?.[key] ?? (key === "overall" ? review.rating : 0)
         if (score > 0) {
@@ -1359,6 +1385,8 @@ export default function AdminDashboard({ onLogout, navigate }) {
             <CommentsTable
               isDarkMode={isDarkMode}
               reviews={reviews}
+              teachers={teachers}
+              departments={departments}
               formatDate={formatDate}
               handleToggleReviewStatus={handleToggleReviewStatus}
               handleViewReview={handleViewReview}
