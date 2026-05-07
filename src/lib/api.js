@@ -870,30 +870,38 @@ export const reviewsApi = {
       fb.teacher?.name ??
       ""
 
+    // IMPORTANT:
+    // Spread backend fields first, then overwrite with normalized fields.
+    // This prevents backend variants (or missing/empty fields) from overwriting `teacherId`, `rating`, `scores`, etc.
+    const raw = { ...fb }
+
+    const normalizedTeacherId =
+      teacherId ??
+      raw.teacherId ??
+      raw.teacher_id ??
+      raw.teachersId ??
+      raw.teachers_id ??
+      raw.teacherID ??
+      raw.teacherIdFk ??
+      raw.teacher_fk ??
+      raw.teacher?.id ??
+      raw.teacher?.teacherId ??
+      raw.teacher?.teacher_id ??
+      raw.teacher?.teacherID ??
+      null
+
     return {
-      id: fb.id ?? fb.feedBackId ?? fb.feedbackId,
-      teacherId:
-        teacherId ??
-        fb.teacherId ??
-        fb.teacher_id ??
-        fb.teachersId ??
-        fb.teachers_id ??
-        fb.teacherID ??
-        fb.teacher?.id ??
-        fb.teacher?.teacherId ??
-        fb.teacher?.teacher_id ??
-        null,
+      ...raw,
+      id: raw.id ?? raw.feedBackId ?? raw.feedbackId,
+      teacherId: normalizedTeacherId,
       teacherName,
-      studentName: fb.name ?? fb.studentName ?? fb.student_name ?? (anonymous ? "Anonim talaba" : ""),
+      studentName: raw.name ?? raw.studentName ?? raw.student_name ?? (anonymous ? "Anonim talaba" : ""),
       anonymous,
-      comment: fb.comment ?? fb.text ?? "",
+      comment: raw.comment ?? raw.text ?? "",
       rating: overall,
       // Admin UI expects isActive to be truthy for visible reviews.
       // Backend schema doesn't include it, so default to true unless explicitly false.
-      isActive:
-        fb.isActive ??
-        fb.active ??
-        (fb.status === "DELETED" ? false : true),
+      isActive: raw.isActive ?? raw.active ?? (raw.status === "DELETED" ? false : true),
       scores: {
         knowledge: Number(ball1 ?? 0),
         teaching: Number(ball2 ?? 0),
@@ -901,8 +909,6 @@ export const reviewsApi = {
         engagement: Number(ball4 ?? 0),
         overall,
       },
-      // Backend doesn't provide timestamps in schema; keep any extra fields if present
-      ...fb,
     }
   },
 

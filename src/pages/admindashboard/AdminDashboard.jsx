@@ -404,6 +404,20 @@ export default function AdminDashboard({ onLogout, navigate }) {
 
     const activeReviews = reviews.filter(isReviewActive)
 
+    const normalizeNameKey = (v) =>
+      String(v || "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+
+    const computeMetricsFromReviews = (list) => {
+      const safe = Array.isArray(list) ? list.filter(isReviewActive) : []
+      if (!safe.length) return { total: 0, overall: 0 }
+      const sum = safe.reduce((acc, r) => acc + Number(r?.scores?.overall ?? r?.rating ?? 0), 0)
+      const overall = Number((sum / safe.length).toFixed(1))
+      return { total: safe.length, overall: Number.isFinite(overall) ? overall : 0 }
+    }
+
     const data = teachers.map((teacher) => {
       const deptId =
         teacher.departmentId ?? teacher.department_id ?? teacher.department?.id ?? teacher.department?.departmentId
@@ -435,7 +449,29 @@ export default function AdminDashboard({ onLogout, navigate }) {
           "Noma'lum"
 
       const teacherId = teacher.id ?? teacher.teacherId ?? teacher.teacher_id
-      const metrics = calculateTeacherMetrics(teacherId, activeReviews)
+      // Prefer ID match; fallback to teacherName match if backend IDs differ across endpoints.
+      const teacherNameKey = normalizeNameKey(
+        teacher.fullName ?? teacher.name ?? teacher.full_name ?? teacher.teacherName ?? "",
+      )
+      const matchedReviews = (Array.isArray(activeReviews) ? activeReviews : []).filter((r) => {
+        const rid =
+          r?.teacherId ??
+          r?.teacher_id ??
+          r?.teachersId ??
+          r?.teachers_id ??
+          r?.teacher?.id ??
+          r?.teacher?.teacherId ??
+          r?.teacher?.teacher_id ??
+          null
+        if (idsEqual(rid, teacherId)) return true
+        if (!teacherNameKey) return false
+        const rNameKey = normalizeNameKey(r?.teacherName ?? r?.teacherFullName ?? r?.teacher?.fullName ?? r?.teacher?.name)
+        return rNameKey && rNameKey === teacherNameKey
+      })
+      const metrics =
+        matchedReviews.length > 0
+          ? computeMetricsFromReviews(matchedReviews)
+          : calculateTeacherMetrics(teacherId, activeReviews)
 
       return {
         "Fakultet nomi": facultyName,
