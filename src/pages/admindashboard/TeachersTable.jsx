@@ -1,4 +1,4 @@
-import { Eye, Pencil, Plus, Trash2, X, Search, Download, Mail } from "lucide-react"
+import { Eye, Pencil, Plus, Trash2, X, Search, Download } from "lucide-react"
 import { buildImageUrl } from "../../lib/api"
 import StarRating from "../../components/StarRating"
 
@@ -34,6 +34,34 @@ export default function TeachersTable({
   cancelDeleteTeacher,
   calculateTeacherMetrics,
 }) {
+  const getDepartmentName = (teacher) => {
+    if (!teacher) return "-"
+    const direct =
+      teacher.department ??
+      teacher.departmentNameUz ??
+      teacher.department_name_uz ??
+      teacher.departmentName ??
+      teacher.department_name ??
+      (typeof teacher.department === "object"
+        ? teacher.department?.nameUz ?? teacher.department?.name ?? ""
+        : "")
+    const directName = String(direct || "").trim()
+    if (directName) return directName
+
+    const deptId =
+      teacher.departmentId ?? teacher.department_id ?? teacher.department?.id ?? teacher.department?.departmentId
+    if (deptId == null || deptId === "") return "-"
+
+    const dept =
+      (Array.isArray(departments) ? departments : []).find(
+        (d) => Number(d?.id ?? d?.departmentId ?? d?.department_id) === Number(deptId),
+      ) || null
+
+    const name =
+      dept?.nameUz ?? dept?.name_uz ?? dept?.nameUZ ?? dept?.name ?? dept?.title ?? ""
+    return String(name || "").trim() || "-"
+  }
+
   return (
     <>
       {/* Delete Teacher Confirmation Modal */}
@@ -378,10 +406,11 @@ export default function TeachersTable({
                 )
               })
               .map((teacher) => {
-                    const metrics = calculateTeacherMetrics(teacher.id, reviews)
+                    const teacherId = teacher.id ?? teacher.teacherId ?? teacher.teacher_id
+                    const metrics = calculateTeacherMetrics(teacherId, reviews)
                     return (
                       <div
-                        key={teacher.id}
+                        key={teacherId ?? teacher.id}
                         className={`rounded-xl border overflow-hidden transition-all duration-300 hover:shadow-lg ${
                           isDarkMode ? "bg-[#14232c] border-[#1a2d3a]" : "bg-white border-slate-200"
                         }`}
@@ -564,15 +593,8 @@ export default function TeachersTable({
                   isDarkMode ? "text-white" : "text-slate-900"
                 }`}
               >
-                {viewTeacher.name}
+                {viewTeacher.fullName || viewTeacher.name}
               </h3>
-              <p
-                className={`text-sm ${
-                  isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"
-                }`}
-              >
-                {viewTeacher.title}
-              </p>
             </div>
 
             <div className="space-y-3">
@@ -589,40 +611,7 @@ export default function TeachersTable({
                     isDarkMode ? "text-white" : "text-slate-900"
                   }`}
                 >
-                  {viewTeacher.department}
-                </p>
-              </div>
-              <div>
-                <p
-                  className={`text-sm font-medium mb-1 ${
-                    isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"
-                  }`}
-                >
-                  Mutaxassislik:
-                </p>
-                <p
-                  className={`font-medium ${
-                    isDarkMode ? "text-white" : "text-slate-900"
-                  }`}
-                >
-                  {viewTeacher.specialization || "-"}
-                </p>
-              </div>
-              <div>
-                <p
-                  className={`text-sm font-medium mb-1 flex items-center gap-2 ${
-                    isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"
-                  }`}
-                >
-                  <Mail className="w-4 h-4" />
-                  <span>E-mail:</span>
-                    <span
-                      className={`font-medium ${
-                        isDarkMode ? "text-white" : "text-slate-900"
-                      }`}
-                    >
-                      {viewTeacher.email || viewTeacher.phone}
-                    </span>
+                  {getDepartmentName(viewTeacher)}
                 </p>
               </div>
               <div>
@@ -634,21 +623,33 @@ export default function TeachersTable({
                   Reyting:
                 </p>
                 {(() => {
-                  const metrics = calculateTeacherMetrics(viewTeacher.id, reviews)
+                  const teacherId = viewTeacher.id ?? viewTeacher.teacherId ?? viewTeacher.teacher_id
+                  const metrics = calculateTeacherMetrics(teacherId, reviews)
                   return (
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <StarRating rating={metrics.overall} size="sm" />
-                      <span className="text-yellow-400 font-bold">
-                        {metrics.overall.toFixed(1)} / 5
-                      </span>
-                      <span
-                        className={`text-sm ${
-                          isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"
-                        }`}
-                      >
-                        ({metrics.total} ta sharh)
-                      </span>
-                    </div>
+                    <>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <StarRating rating={metrics.overall} size="sm" />
+                        <span className="text-yellow-400 font-bold">
+                          {metrics.overall.toFixed(1)} / 5
+                        </span>
+                      </div>
+                      <div className="mt-2">
+                        <p
+                          className={`text-sm font-medium mb-1 ${
+                            isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"
+                          }`}
+                        >
+                          Sharhlar soni:
+                        </p>
+                        <p
+                          className={`font-medium ${
+                            isDarkMode ? "text-white" : "text-slate-900"
+                          }`}
+                        >
+                          {metrics.total} ta sharh
+                        </p>
+                      </div>
+                    </>
                   )
                 })()}
               </div>

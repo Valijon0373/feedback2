@@ -91,9 +91,26 @@ const idsEqual = (a, b) => {
 }
 
 const calculateTeacherMetrics = (teacherId, reviews) => {
-  if (teacherId == null || teacherId === "") return { total: 0, overall: 0, averages: SCORE_FIELDS.reduce((acc, { key }) => ({ ...acc, [key]: 0 }), {}) }
-  const teacherReviews = reviews.filter((review) => {
-    const rid = review.teacherId ?? review.teacher_id ?? review.teachersId ?? review.teachers_id ?? review.teacher?.id
+  if (teacherId == null || teacherId === "") {
+    return {
+      total: 0,
+      overall: 0,
+      averages: SCORE_FIELDS.reduce((acc, { key }) => ({ ...acc, [key]: 0 }), {}),
+    }
+  }
+
+  const safeReviews = (Array.isArray(reviews) ? reviews : []).filter(isReviewActive)
+  const teacherReviews = safeReviews.filter((review) => {
+    const rid =
+      review.teacherId ??
+      review.teacher_id ??
+      review.teachersId ??
+      review.teachers_id ??
+      review.teacher?.id ??
+      review.teacher?.teacherId ??
+      review.teacher?.teacher_id ??
+      review.teacher?.teachersId ??
+      review.teacher?.teachers_id
     return idsEqual(rid, teacherId)
   })
   if (!teacherReviews.length) {

@@ -95,7 +95,10 @@ const parseJsonSafe = async (res) => {
   }
 }
 
-const apiFetch = async (path, { method = "GET", body, headers, auth = false } = {}) => {
+const apiFetch = async (
+  path,
+  { method = "GET", body, headers, auth = false, credentials } = {},
+) => {
   const base = getBaseUrl()
   const url = base ? `${base}${path}` : path
 
@@ -149,7 +152,8 @@ const apiFetch = async (path, { method = "GET", body, headers, auth = false } = 
     method,
     headers: finalHeaders,
     body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
-    credentials: "include",
+    // Prefer stateless Bearer auth. Cookies from admin session can break public/view endpoints.
+    credentials: credentials ?? "omit",
   })
 
   if (!res.ok) {
@@ -195,12 +199,14 @@ const hasAdminToken = () => {
  */
 const apiFetchPublicThenAuth = async (path, opts = {}) => {
   try {
-    return await apiFetch(path, { ...(opts || {}), auth: false })
+    // Public attempt should not send cookies (admin session may break public access).
+    return await apiFetch(path, { ...(opts || {}), auth: false, credentials: "omit" })
   } catch (e) {
     const status = e?.status
     const canRetry = (status === 401 || status === 403 || status === 404) && hasAdminToken()
     if (!canRetry) throw e
-    return await apiFetch(path, { ...(opts || {}), auth: true })
+    // Protected retry also should not send cookies; use Bearer only.
+    return await apiFetch(path, { ...(opts || {}), auth: true, credentials: "omit" })
   }
 }
 
@@ -529,7 +535,11 @@ export const teachersApi = {
    */
   getAllPublic: async () => {
     try {
-      const data = await apiFetch("/api/view/teachers/all", { method: "GET", auth: false })
+      const data = await apiFetch("/api/view/teachers/all", {
+        method: "GET",
+        auth: false,
+        credentials: "omit",
+      })
       const list = unwrapList(data)
       const rawList = list || (Array.isArray(data?.teachers) ? data.teachers : Array.isArray(data) ? data : null)
       if (!rawList) return [...state.teachers]
@@ -552,6 +562,7 @@ export const teachersApi = {
       const data = await apiFetch(`/api/view/teachers/${encodeURIComponent(String(id))}`, {
         method: "GET",
         auth: false,
+        credentials: "omit",
       })
       const one = unwrapOne(data) || null
       if (!one) return null
@@ -574,6 +585,7 @@ export const teachersApi = {
       const data = await apiFetch(`/api/view/departments/${encodeURIComponent(String(departmentId))}/teachers`, {
         method: "GET",
         auth: false,
+        credentials: "omit",
       })
       const list = unwrapList(data)
       const rawList = list || (Array.isArray(data?.teachers) ? data.teachers : Array.isArray(data) ? data : null)
@@ -860,7 +872,17 @@ export const reviewsApi = {
 
     return {
       id: fb.id ?? fb.feedBackId ?? fb.feedbackId,
-      teacherId: teacherId ?? fb.teacherId ?? fb.teacher_id,
+      teacherId:
+        teacherId ??
+        fb.teacherId ??
+        fb.teacher_id ??
+        fb.teachersId ??
+        fb.teachers_id ??
+        fb.teacherID ??
+        fb.teacher?.id ??
+        fb.teacher?.teacherId ??
+        fb.teacher?.teacher_id ??
+        null,
       teacherName,
       studentName: fb.name ?? fb.studentName ?? fb.student_name ?? (anonymous ? "Anonim talaba" : ""),
       anonymous,
@@ -885,16 +907,35 @@ export const reviewsApi = {
   },
 
   getAll: async () => {
-    // 1) Asosiy yo‘l: /api/feedbacks (public yoki admin token bilan)
-    try {
-      const data = await apiFetchPublicThenAuth("/api/feedbacks", { method: "GET" })
-      const list = unwrapList(data)
-      if (list && list.length) return list.map((x) => reviewsApi._normalize(x))
-      if (Array.isArray(data?.feedbacks) && data.feedbacks.length) {
-        return data.feedbacks.map((x) => reviewsApi._normalize(x))
+    // 1) Asosiy yo‘l: turli backend variantlari bo‘yicha "all feedbacks" endpointlarini sinab ko‘ramiz.
+    // Ba'zi deploylarda /api/feedbacks o‘rniga /api/feedback yoki /api/feedbacks/all ishlaydi.
+    const candidates = [
+      "/api/feedbacks",
+      "/api/feedback",
+      "/api/feedbacks/all",
+      "/api/feedback/all",
+      "/api/view/feedbacks",
+      "/api/view/feedback",
+    ]
+
+    let lastErr = null
+    for (const path of candidates) {
+      try {
+        const data = await apiFetchPublicThenAuth(path, { method: "GET" })
+        const list = unwrapList(data)
+        if (list && list.length) return list.map((x) => reviewsApi._normalize(x))
+        if (Array.isArray(data?.feedbacks) && data.feedbacks.length) {
+          return data.feedbacks.map((x) => reviewsApi._normalize(x))
+        }
+        if (Array.isArray(data?.items) && data.items.length) {
+          return data.items.map((x) => reviewsApi._normalize(x))
+        }
+        if (Array.isArray(data?.content) && data.content.length) {
+          return data.content.map((x) => reviewsApi._normalize(x))
+        }
+      } catch (e) {
+        lastErr = e
       }
-    } catch {
-      // Pastdagi fallback'ga tushamiz
     }
 
     // 2) Agar /api/feedbacks dan hech narsa ola olmasak (masalan, public sahifada faqat
@@ -921,6 +962,13 @@ export const reviewsApi = {
       // Agar bu ham ishlamasa, local state'ga tushamiz.
     }
 
+    if (lastErr) {
+      console.warn("[reviewsApi.getAll] all endpoints failed, falling back", {
+        tried: candidates,
+        lastError: { message: lastErr?.message, status: lastErr?.status, data: lastErr?.data },
+      })
+    }
+
     // 3) Oxirgi fallback – local (mock) state
     return [...state.reviews]
   },
@@ -944,7 +992,13 @@ export const reviewsApi = {
       // GET /api/feedbacks/teacher/{teacherId}
       const candidates = [
         `/api/view/teachers/${encodeURIComponent(String(teacherId))}/feedbacks`,
+        `/api/view/teacher/${encodeURIComponent(String(teacherId))}/feedbacks`,
+        `/api/view/teachers/${encodeURIComponent(String(teacherId))}/feedback`,
+        `/api/view/teacher/${encodeURIComponent(String(teacherId))}/feedback`,
         `/api/feedbacks/teacher/${encodeURIComponent(String(teacherId))}`,
+        `/api/feedback/teacher/${encodeURIComponent(String(teacherId))}`,
+        `/api/feedbacks/teachers/${encodeURIComponent(String(teacherId))}`,
+        `/api/feedback/teachers/${encodeURIComponent(String(teacherId))}`,
       ]
 
       let lastErr = null
@@ -960,7 +1014,14 @@ export const reviewsApi = {
         }
       }
 
-      if (lastErr) throw lastErr
+      if (lastErr) {
+        console.warn("[reviewsApi.getByTeacherId] all endpoints failed", {
+          teacherId,
+          tried: candidates,
+          lastError: { message: lastErr?.message, status: lastErr?.status, data: lastErr?.data },
+        })
+        throw lastErr
+      }
       return local
     } catch {
       return local
