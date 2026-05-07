@@ -821,17 +821,44 @@ export const reviewsApi = {
   },
 
   getAll: async () => {
+    // 1) Asosiy yo‘l: /api/feedbacks (public yoki admin token bilan)
     try {
-      // Swagger: GET /api/feedbacks (odatda admin uchun). Public bo'lsa ham 401 bo'lishi mumkin,
-      // shuning uchun public -> auth retry ishlatamiz.
       const data = await apiFetchPublicThenAuth("/api/feedbacks", { method: "GET" })
       const list = unwrapList(data)
-      if (list) return list.map((x) => reviewsApi._normalize(x))
-      if (Array.isArray(data?.feedbacks)) return data.feedbacks
-      return Array.isArray(data) ? data : [...state.reviews]
+      if (list && list.length) return list.map((x) => reviewsApi._normalize(x))
+      if (Array.isArray(data?.feedbacks) && data.feedbacks.length) {
+        return data.feedbacks.map((x) => reviewsApi._normalize(x))
+      }
     } catch {
-      return [...state.reviews]
+      // Pastdagi fallback'ga tushamiz
     }
+
+    // 2) Agar /api/feedbacks dan hech narsa ola olmasak (masalan, public sahifada faqat
+    //    /api/view/teachers/{id}/feedbacks mavjud bo‘lsa), barcha o‘qituvchilarni olib,
+    //    ularning sharhlarini yig‘ib chiqamiz. Bu biroz sekinroq, lekin public Home sahifadagi
+    //    umumiy sharhlar sonini to‘g‘ri ko‘rsatadi.
+    try {
+      const teachers = await teachersApi.getAll()
+      const teacherList = Array.isArray(teachers) ? teachers : []
+      if (teacherList.length) {
+        const chunks = await Promise.all(
+          teacherList.map((t) =>
+            reviewsApi
+              .getByTeacherId(t.id ?? t.teacherId ?? t.teacher_id)
+              .catch(() => []),
+          ),
+        )
+        const merged = chunks.flat().filter(Boolean)
+        if (merged.length) {
+          return merged
+        }
+      }
+    } catch {
+      // Agar bu ham ishlamasa, local state'ga tushamiz.
+    }
+
+    // 3) Oxirgi fallback – local (mock) state
+    return [...state.reviews]
   },
 
   getById: async (id) => {
