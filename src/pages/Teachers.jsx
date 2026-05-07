@@ -9,6 +9,8 @@ export default function Teachers({ navigate }) {
   const [searchTerm, setSearchTerm] = useState("")
   const [teachers, setTeachers] = useState([])
   const [reviews, setReviews] = useState([])
+  const [teacherReviewsById, setTeacherReviewsById] = useState({})
+  const [teacherReviewsLoading, setTeacherReviewsLoading] = useState({})
   const [loading, setLoading] = useState(true)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
@@ -38,7 +40,7 @@ export default function Teachers({ navigate }) {
       setLoading(true)
       try {
         const [teachersRes, reviewsRes, departmentsRes] = await Promise.allSettled([
-          teachersApi.getAll(),
+          teachersApi.getAllPublic(),
           reviewsApi.getAll(),
           departmentsApi.getAll(),
         ])

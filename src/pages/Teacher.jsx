@@ -22,8 +22,8 @@ export default function Teacher({ id, navigate }) {
     const fetchTeacher = async () => {
       try {
         const [teacherRes, teachersRes, departmentsRes] = await Promise.allSettled([
-          teachersApi.getById(id),
-          teachersApi.getAll(),
+          teachersApi.getByIdPublic(id),
+          teachersApi.getAllPublic(),
           departmentsApi.getAll(),
         ])
 

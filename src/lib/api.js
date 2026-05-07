@@ -522,6 +522,70 @@ export const departmentsApi = {
 ///////////////////////////
 
 export const teachersApi = {
+  /**
+   * Public teachers list.
+   * IMPORTANT: public pages should use this even if admin token exists,
+   * because protected endpoints may return different image field formats.
+   */
+  getAllPublic: async () => {
+    try {
+      const data = await apiFetch("/api/view/teachers/all", { method: "GET", auth: false })
+      const list = unwrapList(data)
+      const rawList = list || (Array.isArray(data?.teachers) ? data.teachers : Array.isArray(data) ? data : null)
+      if (!rawList) return [...state.teachers]
+
+      const departments = await departmentsApi.getAll()
+      const map = new Map(
+        (Array.isArray(departments) ? departments : [])
+          .map((d) => [String(getDeptNameAny(d)).trim().toLowerCase(), d.id])
+          .filter(([k]) => k),
+      )
+      return rawList.map((t) => normalizeTeacherPublic(t, { departmentIdByNameUz: map }))
+    } catch {
+      return [...state.teachers]
+    }
+  },
+
+  /** Public teacher by id */
+  getByIdPublic: async (id) => {
+    try {
+      const data = await apiFetch(`/api/view/teachers/${encodeURIComponent(String(id))}`, {
+        method: "GET",
+        auth: false,
+      })
+      const one = unwrapOne(data) || null
+      if (!one) return null
+      const departments = await departmentsApi.getAll()
+      const map = new Map(
+        (Array.isArray(departments) ? departments : [])
+          .map((d) => [String(getDeptNameAny(d)).trim().toLowerCase(), d.id])
+          .filter(([k]) => k),
+      )
+      return normalizeTeacherPublic(one, { departmentIdByNameUz: map })
+    } catch {
+      return state.teachers.find((t) => Number(t.id) === Number(id)) || null
+    }
+  },
+
+  /** Public teachers by department id */
+  getByDepartmentIdPublic: async (departmentId) => {
+    const local = state.teachers.filter((t) => Number(t.departmentId) === Number(departmentId))
+    try {
+      const data = await apiFetch(`/api/view/departments/${encodeURIComponent(String(departmentId))}/teachers`, {
+        method: "GET",
+        auth: false,
+      })
+      const list = unwrapList(data)
+      const rawList = list || (Array.isArray(data?.teachers) ? data.teachers : Array.isArray(data) ? data : null)
+      if (!rawList) return local
+      return rawList.map((t) =>
+        normalizeTeacherPublic(t, { defaultDepartmentId: Number(departmentId) }),
+      )
+    } catch {
+      return local
+    }
+  },
+
   getAll: async () => {
     try {
       const hasToken = hasAdminToken()

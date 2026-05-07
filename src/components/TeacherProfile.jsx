@@ -369,11 +369,16 @@ export default function TeacherProfile({ teacher, onBack, layout = "default" }) 
             <div className="flex flex-col items-center justify-start md:pl-6">
               <div className="w-48 h-48 rounded-xl overflow-hidden border-2 border-slate-200 shadow-md">
                 <img
-                src={
-                  buildImageUrl(
-                    teacher.imageUrl || teacher.image || teacher.photo || teacher.avatar || "",
-                  ) || "/placeholder-user.jpg"
-                }
+                  src={
+                    buildImageUrl(
+                      teacher.imageLink ||
+                        teacher.imageUrl ||
+                        teacher.image ||
+                        teacher.photo ||
+                        teacher.avatar ||
+                        "",
+                    ) || "/placeholder-user.jpg"
+                  }
                   alt={teacher.fullName || teacher.name}
                   className="w-full h-full object-cover"
                 />

@@ -18,7 +18,7 @@ export default function Department({ id, navigate }) {
         const [deptRes, departmentsRes, teachersRes, reviewsRes] = await Promise.allSettled([
           departmentsApi.getById(id),
           departmentsApi.getAll(),
-          teachersApi.getAll(),
+          teachersApi.getAllPublic(),
           reviewsApi.getAll(),
         ])
 
@@ -149,7 +149,12 @@ export default function Department({ id, navigate }) {
                 <div className="w-full h-56 rounded-lg mb-4 overflow-hidden bg-slate-100 flex items-center justify-center">
                   <img
                     src={buildImageUrl(
-                      teacher.imageUrl || teacher.image || teacher.photo || teacher.avatar || "",
+                      teacher.imageLink ||
+                        teacher.imageUrl ||
+                        teacher.image ||
+                        teacher.photo ||
+                        teacher.avatar ||
+                        "",
                     ) || "/placeholder.svg"}
                     alt={teacher.name}
                     className="w-full h-full object-contain"
