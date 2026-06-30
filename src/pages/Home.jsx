@@ -6,6 +6,74 @@ import StarRating from "../components/StarRating"
 export default function Home({ navigate }) {
   const [openReviews, setOpenReviews] = useState(false)
   const [openTeachers, setOpenTeachers] = useState(false)
+  const [openPrograms, setOpenPrograms] = useState(false)
+
+  const educationPrograms = [
+    {
+      title: "1 Bakalavriat, kunduzgi ta'lim - jami",
+      items: [
+        "60110100 Pedagogika",
+        "60110200 Maktabgacha ta'lim",
+        "60110400 Boshlangʻich ta'lim",
+        "60110500 Tasviriy san'at va muhandislik grafikasi",
+        "60110600 Musiqa ta'limi",
+        "60110700 Oʻzbek tili va adabiyoti",
+        "60110800 Ona tili va adabiyoti: rus tili",
+        "60110900 Xorijiy til va adabiyoti: ingliz tili",
+        "60111100 Milliy gʻoya, ma'naviyat asoslari va huquq ta'limi",
+        "60111200 Jismoniy madaniyat",
+        "60111300 Texnologik ta'lim",
+        "60220300 Tarix",
+        "60510100 Biologiya",
+        "60530100 Kimyo",
+        "60530200 Geografiya",
+        "60530500 Fizika",
+        "60530700 Astronomiya",
+        "60540100 Matematika",
+        "60540200 Amaliy matematika",
+        "60610100 Axborot tizimlari va texnologiyalari",
+        "60610500 Sun'iy intellekt",
+      ],
+    },
+    {
+      title: "2 Bakalavriat, kechki ta'lim - jami",
+      items: [
+        "60110200 Maktabgacha ta'lim",
+        "60110400 Boshlangʻich ta'lim",
+        "60110800 Ona tili va adabiyoti: rus tili",
+        "60110900 Xorijiy til va adabiyoti: ingliz tili",
+        "60111100 Milliy gʻoya, ma'naviyat asoslari va huquq ta'limi",
+        "60111200 Jismoniy madaniyat",
+        "60111300 Texnologik ta'lim",
+        "60540100 Matematika",
+        "60220300 Tarix",
+        "60110500 Tasviriy san'at va muhandislik grafikasi",
+        "60110600 Musiqa ta'limi",
+        "60540200 Amaliy matematika",
+      ],
+    },
+    {
+      title: "3 Magistratura, kunduzgi ta'lim - jami",
+      items: [
+        "70110101 Pedagogika nazariyasi va tarixi",
+        "70110201 Ta'lim va tarbiya nazariyasi va metodikasi (maktabgacha ta'lim)",
+        "70110401 Ta'lim va tarbiya nazariyasi va metodikasi (boshlangʻich ta'lim)",
+        "70110502 Muhandislik grafikasi va dizayn nazariyasi",
+        "70110601 Musiqa ta'limi va san'at",
+        "70110701 Oʻzbek tili va adabiyoti",
+        "70110901 Xorijiy til va adabiyoti",
+        "70111101 Ijtimoiy-gumanitar fanlarni o'qitish metodikasi (ma'naviyat asoslari)",
+        "70111201 Jismoniy tarbiya va sport mashg'ulotlari nazariyasi va metodikasi",
+        "70111301 Ta'lim va tarbiya nazariyasi va metodikasi (texnologik ta'lim)",
+        "70220303 Ijtimoiy-gumanitar fanlarni o'qitish metodikasi (tarix)",
+        "70510105 Aniq va tabiiy fanlarni o'qitish metodikasi (biologiya)",
+        "70530104 Aniq va tabiiy fanlarni o'qitish metodikasi (kimyo)",
+        "70530203 Aniq va tabiiy fanlarni o'qitish metodikasi (geografiya)",
+        "70530510 Aniq va tabiiy fanlarni o'qitish metodikasi (fizika va astronomiya)",
+        "70540104 Aniq va tabiiy fanlarni o'qitish metodikasi (matematika)",
+      ],
+    },
+  ]
 
   const [stats, setStats] = useState({
     faculties: 0,
@@ -141,6 +209,10 @@ export default function Home({ navigate }) {
   
   const toggleTeachers = () => {
     setOpenTeachers(!openTeachers)
+  }
+
+  const togglePrograms = () => {
+    setOpenPrograms(!openPrograms)
   }
 
   return (
@@ -305,6 +377,63 @@ export default function Home({ navigate }) {
             </div>
           </div>
         </div>
+
+        {/* Ta'lim Dasturlari Button */}
+        <div className="w-full md:w-96">
+          <button
+            onClick={togglePrograms}
+            className="w-full outline outline-2 outline-purple-500 hover:outline-purple-600 bg-white/90 hover:bg-white text-slate-900 font-semibold py-4 px-8 rounded-full shadow-md transition-all duration-300 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-lg">Ta'lim Dasturlari</span>
+              <svg
+                className={`w-5 h-5 transition-transform duration-300 ${openPrograms ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </button>
+          
+          {/* Animated Content */}
+          <div
+            className={`w-full overflow-hidden transition-all duration-500 ease-in-out ${
+              openPrograms ? 'max-h-[800px] opacity-100 mt-4' : 'max-h-0 opacity-0'
+            }`}
+          >
+            <div className={`card transition-all duration-500 ${
+              openPrograms 
+                ? 'translate-y-0 opacity-100' 
+                : '-translate-y-4 opacity-0'
+            }`}>
+              <h2 className="text-xl font-bold text-slate-900 mb-4">Ta'lim Dasturlari</h2>
+              <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
+                {educationPrograms.map((program, pi) => (
+                  <div key={pi} className={`transition-all duration-300 ${
+                    openPrograms ? 'translate-x-0 opacity-100' : 'translate-x-4 opacity-0'
+                  }`} style={{ transitionDelay: `${pi * 150}ms` }}>
+                    <h3 className="font-semibold text-slate-800 mb-2 text-sm bg-slate-100 p-2 rounded-lg">
+                      {program.title}
+                    </h3>
+                    <div className="space-y-1">
+                      {program.items.map((item, ii) => (
+                        <div
+                          key={ii}
+                          className="text-sm text-slate-600 py-1 px-3 hover:bg-slate-50 rounded transition-colors"
+                        >
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
       </div>
     </div>

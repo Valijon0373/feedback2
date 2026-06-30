@@ -486,6 +486,7 @@ export default function TeacherProfile({ teacher, onBack, layout = "default" }) 
 
       <div className="card border border-slate-200">
         <h2 className="text-xl font-bold text-slate-900 mb-4">Sharhlar ({totalReviews})</h2>
+        {/*
         {totalReviews === 0 ? (
           <p className="text-slate-600">Hali hech qanday sharh yo'q</p>
         ) : (
@@ -517,6 +518,7 @@ export default function TeacherProfile({ teacher, onBack, layout = "default" }) 
             ))}
           </div>
         )}
+        */}
       </div>
     </div>
   )

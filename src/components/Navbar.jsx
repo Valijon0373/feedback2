@@ -36,6 +36,13 @@ export default function Navbar({ currentPage, navigate }) {
               >
                 O'qituvchilar
               </button>
+
+                            <button 
+                onClick={() => navigate("#")}
+                className={`px-3 py-2 rounded-lg font-medium transition-colors ${isHomePage ? "text-white hover:bg-white/20" : "text-blue-600 hover:bg-blue-50"}`}
+              >
+                Talabalar
+              </button>
             </div>
           </div>
 
