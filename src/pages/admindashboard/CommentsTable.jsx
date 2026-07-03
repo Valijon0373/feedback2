@@ -7,6 +7,7 @@ export default function CommentsTable({
   reviews,
   teachers,
   departments,
+  faculties,
   formatDate,
   handleToggleReviewStatus,
   handleViewReview,
@@ -22,6 +23,8 @@ export default function CommentsTable({
   const [toDate, setToDate] = useState("")
   const [sortBy, setSortBy] = useState("rating_desc")
   const [searchQuery, setSearchQuery] = useState("")
+  const [selectedFaculty, setSelectedFaculty] = useState("")
+  const [selectedDepartment, setSelectedDepartment] = useState("")
 
   const normalizeId = (v) => {
     if (v === undefined || v === null) return null
@@ -92,6 +95,101 @@ export default function CommentsTable({
     return map
   }, [teachers])
 
+  const normalizeNameKey = (v) =>
+    String(v || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+
+  const getDeptFacultyId = (d) =>
+    d?.facultyId ?? d?.faculty_id ?? d?.faculty?.id ?? d?.faculty?.facultyId ?? null
+
+  const getDeptId = (d) => d?.id ?? d?.departmentId ?? d?.department_id ?? null
+
+  const findDepartmentByName = (name) => {
+    const searchName = normalizeNameKey(name)
+    if (!searchName) return null
+    const list = Array.isArray(departments) ? departments : []
+    const getName = (d) =>
+      normalizeNameKey(d?.nameUz ?? d?.name_uz ?? d?.nameUZ ?? d?.name ?? d?.title ?? "")
+    return (
+      list.find((d) => getName(d) === searchName) ??
+      list.find((d) => {
+        const n = getName(d)
+        return n && (n.includes(searchName) || searchName.includes(n))
+      }) ??
+      null
+    )
+  }
+
+  const getTeacherFromReview = (review) => {
+    const tid = getTeacherIdFromReview(review)
+    if (tid != null) {
+      const teacher =
+        teacherById.get(String(tid)) ?? teacherById.get(String(Number(tid)))
+      if (teacher) return teacher
+    }
+
+    const nameKey = normalizeNameKey(
+      review?.teacherName ??
+        review?.teacherFullName ??
+        review?.teacher_full_name ??
+        review?.teacher?.fullName ??
+        review?.teacher?.name ??
+        "",
+    )
+    if (!nameKey) return null
+
+    return (
+      (Array.isArray(teachers) ? teachers : []).find((t) => {
+        const tk = normalizeNameKey(t?.fullName ?? t?.name ?? t?.full_name ?? t?.teacherName ?? "")
+        return tk && tk === nameKey
+      }) ?? null
+    )
+  }
+
+  const resolveReviewDepartment = (review) => {
+    let deptId =
+      review?.departmentId ??
+      review?.department_id ??
+      review?.department?.id ??
+      review?.department?.departmentId ??
+      null
+
+    const teacher = getTeacherFromReview(review)
+    if (deptId == null && teacher) {
+      deptId =
+        teacher.departmentId ??
+        teacher.department_id ??
+        teacher.department?.id ??
+        teacher.department?.departmentId ??
+        null
+    }
+
+    let dept =
+      deptId != null
+        ? deptById.get(String(deptId)) ?? deptById.get(String(Number(deptId)))
+        : null
+
+    if (!dept) {
+      dept = findDepartmentByName(getReviewDepartmentName(review))
+    }
+
+    if (!dept && teacher) {
+      const teacherDeptName =
+        typeof teacher.department === "string"
+          ? teacher.department
+          : teacher.departmentNameUz ??
+            teacher.department_name_uz ??
+            teacher.departmentName ??
+            teacher.department_name ??
+            null
+      if (teacherDeptName) dept = findDepartmentByName(teacherDeptName)
+    }
+
+    return dept
+  }
+
   const getReviewDepartmentName = (review) => {
     const direct =
       review?.departmentName ??
@@ -105,9 +203,7 @@ export default function CommentsTable({
     const directName = String(direct || "").trim()
     if (directName) return directName
 
-    const tid = getTeacherIdFromReview(review)
-    const teacher =
-      tid != null ? teacherById.get(String(tid)) ?? teacherById.get(String(Number(tid))) : null
+    const teacher = getTeacherFromReview(review)
     return getDepartmentNameFromTeacher(teacher, deptById)
   }
 
@@ -156,21 +252,48 @@ export default function CommentsTable({
   }
 
   const filteredReviews = useMemo(() => {
-    if (!Array.isArray(reviews) || (!fromDate && !toDate)) return Array.isArray(reviews) ? reviews : []
+    if (!Array.isArray(reviews)) return []
+    let list = reviews
 
-    // Use mid-day for bounds to avoid DST edge issues
-    const from = fromDate ? new Date(`${fromDate}T00:00:00.000`) : null
-    const to = toDate ? new Date(`${toDate}T23:59:59.999`) : null
+    if (fromDate || toDate) {
+      const from = fromDate ? new Date(`${fromDate}T00:00:00.000`) : null
+      const to = toDate ? new Date(`${toDate}T23:59:59.999`) : null
+      list = list.filter((review) => {
+        const raw = review?.date ?? review?.created_at ?? review?.createdAt ?? review?.created ?? null
+        const d = parseReviewDate(raw)
+        if (!d) return false
+        if (from && d < from) return false
+        if (to && d > to) return false
+        return true
+      })
+    }
+    
+    if (selectedFaculty || selectedDepartment) {
+      list = list.filter((review) => {
+        const dept = resolveReviewDepartment(review)
 
-    return reviews.filter((review) => {
-      const raw = review?.date ?? review?.created_at ?? review?.createdAt ?? review?.created ?? null
-      const d = parseReviewDate(raw)
-      if (!d) return false
-      if (from && d < from) return false
-      if (to && d > to) return false
-      return true
-    })
-  }, [reviews, fromDate, toDate])
+        if (selectedDepartment) {
+          if (!dept || !idsEqual(getDeptId(dept), selectedDepartment)) return false
+        } else if (selectedFaculty) {
+          if (!dept || !idsEqual(getDeptFacultyId(dept), selectedFaculty)) return false
+        }
+
+        return true
+      })
+    }
+
+    return list
+  }, [
+    reviews,
+    fromDate,
+    toDate,
+    selectedFaculty,
+    selectedDepartment,
+    deptById,
+    teacherById,
+    departments,
+    teachers,
+  ])
 
   const searchedReviews = useMemo(() => {
     const list = Array.isArray(filteredReviews) ? filteredReviews : []
@@ -230,11 +353,66 @@ export default function CommentsTable({
         Barcha Sharhlar
       </h2>
       <div
-        className={`mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between p-4 rounded-xl border ${
+        className={`mb-5 flex flex-col gap-4 p-4 rounded-xl border ${
           isDarkMode ? "bg-[#0e1a22] border-[#1a2d3a]" : "bg-slate-50 border-slate-200"
         }`}
       >
-        <div className="flex flex-col md:flex-row gap-3 md:items-end">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          <label className="flex flex-col gap-1">
+            <span className={`text-xs font-medium ${isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"}`}>
+              Fakultet
+            </span>
+            <select
+              value={selectedFaculty}
+              onChange={(e) => {
+                setSelectedFaculty(e.target.value)
+                setSelectedDepartment("")
+              }}
+              className={`px-3 py-2 rounded-lg border text-sm outline-none transition-colors ${
+                isDarkMode
+                  ? "bg-[#14232c] border-[#1a2d3a] text-white"
+                  : "bg-white border-slate-200 text-slate-900"
+              }`}
+            >
+              <option value="">Barchasi</option>
+              {(faculties || []).map((f) => {
+                const fid = f.id ?? f.facultyId ?? f.faculty_id
+                return (
+                  <option key={fid} value={fid}>
+                    {f.nameUz ?? f.name_uz ?? f.name}
+                  </option>
+                )
+              })}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className={`text-xs font-medium ${isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"}`}>
+              Kafedra
+            </span>
+            <select
+              value={selectedDepartment}
+              onChange={(e) => setSelectedDepartment(e.target.value)}
+              className={`px-3 py-2 rounded-lg border text-sm outline-none transition-colors ${
+                isDarkMode
+                  ? "bg-[#14232c] border-[#1a2d3a] text-white"
+                  : "bg-white border-slate-200 text-slate-900"
+              }`}
+            >
+              <option value="">Barchasi</option>
+              {(departments || [])
+                .filter(
+                  (d) => !selectedFaculty || idsEqual(getDeptFacultyId(d), selectedFaculty),
+                )
+                .map((d) => {
+                  const did = getDeptId(d)
+                  return (
+                    <option key={did} value={did}>
+                      {d.nameUz ?? d.name_uz ?? d.name ?? d.title}
+                    </option>
+                  )
+                })}
+            </select>
+          </label>
           <label className="flex flex-col gap-1">
             <span className={`text-xs font-medium ${isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"}`}>
               Boshlanish sana
@@ -267,80 +445,84 @@ export default function CommentsTable({
           </label>
         </div>
 
-        <div className="w-full md:flex-1 md:px-3">
-          <label className="flex flex-col gap-1 w-full md:max-w-md md:mx-auto">
-            <span className={`text-xs font-medium ${isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"}`}>
-              Izlash
-            </span>
-            <div
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm outline-none transition-colors ${
-                isDarkMode
-                  ? "bg-[#14232c] border-[#1a2d3a] text-white"
-                  : "bg-white border-slate-200 text-slate-900"
-              }`}
-            >
-              <Search className={`w-4 h-4 ${isDarkMode ? "text-[#8b9ba8]" : "text-slate-500"}`} />
-              <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Talaba, o'qituvchi, kafedra yoki sharh..."
-                className={`w-full bg-transparent outline-none placeholder:opacity-70 ${
+        <div className="flex flex-col md:flex-row gap-3 md:items-end md:justify-between">
+          <div className="w-full md:flex-1 md:max-w-md">
+            <label className="flex flex-col gap-1 w-full">
+              <span className={`text-xs font-medium ${isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"}`}>
+                Izlash
+              </span>
+              <div
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm outline-none transition-colors ${
                   isDarkMode
-                    ? "text-white placeholder:text-[#8b9ba8] caret-white"
-                    : "text-slate-900 placeholder:text-slate-500 caret-slate-900"
+                    ? "bg-[#14232c] border-[#1a2d3a] text-white"
+                    : "bg-white border-slate-200 text-slate-900"
                 }`}
-              />
-              {!!searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className={`px-2 py-0.5 rounded-md border text-xs font-semibold transition-colors ${
+              >
+                <Search className={`w-4 h-4 ${isDarkMode ? "text-[#8b9ba8]" : "text-slate-500"}`} />
+                <input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Talaba, o'qituvchi, kafedra yoki sharh..."
+                  className={`w-full bg-transparent outline-none placeholder:opacity-70 ${
                     isDarkMode
-                      ? "border-[#1a2d3a] text-[#8b9ba8] hover:text-white hover:border-white/20"
-                      : "border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300"
+                      ? "text-white placeholder:text-[#8b9ba8] caret-white"
+                      : "text-slate-900 placeholder:text-slate-500 caret-slate-900"
                   }`}
-                >
-                  Tozalash
-                </button>
-              )}
-            </div>
-          </label>
-        </div>
+                />
+                {!!searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className={`px-2 py-0.5 rounded-md border text-xs font-semibold transition-colors ${
+                      isDarkMode
+                        ? "border-[#1a2d3a] text-[#8b9ba8] hover:text-white hover:border-white/20"
+                        : "border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300"
+                    }`}
+                  >
+                    Tozalash
+                  </button>
+                )}
+              </div>
+            </label>
+          </div>
 
-        <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
-          <label className="flex flex-col gap-1">
-            <span className={`text-xs font-medium ${isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"}`}>
-              Saralash
-            </span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className={`px-3 py-2 rounded-lg border text-sm outline-none transition-colors cursor-pointer ${
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+            <label className="flex flex-col gap-1">
+              <span className={`text-xs font-medium ${isDarkMode ? "text-[#8b9ba8]" : "text-slate-600"}`}>
+                Saralash
+              </span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className={`px-3 py-2 rounded-lg border text-sm outline-none transition-colors cursor-pointer ${
+                  isDarkMode
+                    ? "bg-[#14232c] border-[#1a2d3a] text-white"
+                    : "bg-white border-slate-200 text-slate-900"
+                }`}
+              >
+                <option value="rating_desc">Reyting: Yuqori → past</option>
+                <option value="rating_asc">Reyting: Past → yuqori</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                setFromDate("")
+                setToDate("")
+                setSortBy("rating_desc")
+                setSearchQuery("")
+                setSelectedFaculty("")
+                setSelectedDepartment("")
+              }}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors text-white ${
                 isDarkMode
-                  ? "bg-[#14232c] border-[#1a2d3a] text-white"
-                  : "bg-white border-slate-200 text-slate-900"
+                  ? "bg-blue-600 hover:bg-blue-700 shadow-md"
+                  : "bg-blue-500 hover:bg-blue-600 shadow-sm"
               }`}
             >
-              <option value="rating_desc">Reyting: Yuqori → past</option>
-              <option value="rating_asc">Reyting: Past → yuqori</option>
-            </select>
-          </label>
-          <button
-            type="button"
-            onClick={() => {
-              setFromDate("")
-              setToDate("")
-              setSortBy("rating_desc")
-              setSearchQuery("")
-            }}
-            className={`px-4 py-2 rounded-lg border text-sm font-semibold transition-colors ${
-              isDarkMode
-                ? "bg-[#14232c] border-[#1a2d3a] text-[#8b9ba8] hover:text-white hover:border-white/20"
-                : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
-            }`}
-          >
-            Tozalash
-          </button>
+              Tozalash
+            </button>
+          </div>
         </div>
       </div>
       <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto">
