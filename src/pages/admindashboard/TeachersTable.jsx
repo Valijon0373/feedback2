@@ -351,48 +351,51 @@ export default function TeachersTable({
           </div>
 
           {/* Search Input */}
-          {!isLimitedUser && (
-            <div className="mb-6">
-              <div className="flex gap-3">
-                <div className="relative flex-1">
-                  <Search
-                    className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${
-                      isDarkMode ? "text-[#8b9ba8]" : "text-slate-400"
-                    }`}
-                  />
-                  <input
-                    type="text"
-                    value={teacherSearchQuery}
-                    onChange={(e) => setTeacherSearchQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault()
-                        setTeacherSearchTerm(teacherSearchQuery)
-                      }
-                    }}
-                    placeholder="O'qituvchi qidirish..."
-                    className={`w-full pl-10 pr-4 py-2.5 border-2 border-blue-500 rounded-full focus:outline-none focus:border-blue-600 transition-colors duration-300 ${
-                      isDarkMode
-                        ? "bg-[#0e1a22] text-white placeholder:text-[#8b9ba8]"
-                        : "bg-white text-slate-900 placeholder:text-slate-400"
-                    }`}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setTeacherSearchTerm(teacherSearchQuery)}
-                  className="px-6 py-2.5 border-2 border-blue-500 text-blue-500 rounded-full font-medium hover:bg-blue-500 hover:text-white transition-all duration-200 whitespace-nowrap"
-                >
-                  Qidirish
-                </button>
+          <div className="mb-6">
+            <div className="flex gap-3">
+              <div className="relative flex-1">
+                <Search
+                  className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${
+                    isDarkMode ? "text-[#8b9ba8]" : "text-slate-400"
+                  }`}
+                />
+                <input
+                  type="text"
+                  value={teacherSearchQuery}
+                  onChange={(e) => {
+                    setTeacherSearchQuery(e.target.value)
+                    if (!e.target.value.trim()) {
+                      setTeacherSearchTerm("")
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      setTeacherSearchTerm(teacherSearchQuery)
+                    }
+                  }}
+                  placeholder="O'qituvchi qidirish..."
+                  className={`w-full pl-10 pr-4 py-2.5 border-2 border-blue-500 rounded-full focus:outline-none focus:border-blue-600 transition-colors duration-300 ${
+                    isDarkMode
+                      ? "bg-[#0e1a22] text-white placeholder:text-[#8b9ba8]"
+                      : "bg-white text-slate-900 placeholder:text-slate-400"
+                  }`}
+                />
               </div>
+              <button
+                type="button"
+                onClick={() => setTeacherSearchTerm(teacherSearchQuery)}
+                className="px-6 py-2.5 border-2 border-blue-500 text-blue-500 rounded-full font-medium hover:bg-blue-500 hover:text-white transition-all duration-200 whitespace-nowrap"
+              >
+                Qidirish
+              </button>
             </div>
-          )}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {teachers
               .filter((teacher) => {
-                if (isLimitedUser || !teacherSearchTerm.trim()) return true
+                if (!teacherSearchTerm.trim()) return true
                 const query = teacherSearchTerm.toLowerCase()
                 const name = (teacher.fullName || teacher.name || "").toLowerCase()
                 const title = (teacher.position || teacher.title || "").toLowerCase()

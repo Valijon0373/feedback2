@@ -6,11 +6,10 @@ import StarRating from "../components/StarRating"
 
 export default function Teachers({ navigate }) {
   const PAGE_SIZE = 12
-  const [searchTerm, setSearchTerm] = useState("")
+  const [teacherSearchQuery, setTeacherSearchQuery] = useState("")
+  const [teacherSearchTerm, setTeacherSearchTerm] = useState("")
   const [teachers, setTeachers] = useState([])
   const [reviews, setReviews] = useState([])
-  const [teacherReviewsById, setTeacherReviewsById] = useState({})
-  const [teacherReviewsLoading, setTeacherReviewsLoading] = useState({})
   const [loading, setLoading] = useState(true)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
@@ -100,18 +99,28 @@ export default function Teachers({ navigate }) {
   useEffect(() => {
     // Search natijalarida ko‘proq yuklashni qayta boshlash uchun.
     setVisibleCount(PAGE_SIZE)
-  }, [searchTerm])
+  }, [teacherSearchTerm])
 
-  const filtered = useMemo(
-    () =>
-      teachers.filter(
-        (t) =>
-          getTeacherDisplayName(t).toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (t.department || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (t.specialization || "").toLowerCase().includes(searchTerm.toLowerCase()),
-      ),
-    [teachers, searchTerm],
-  )
+  const filtered = useMemo(() => {
+    if (!teacherSearchTerm.trim()) return teachers
+    const query = teacherSearchTerm.toLowerCase().trim()
+    return teachers.filter((teacher) => {
+      const name = (getTeacherDisplayName(teacher) || "").toLowerCase()
+      const title = (getTeacherDisplayTitle(teacher) || "").toLowerCase()
+      const dept = (
+        typeof teacher.department === "string"
+          ? teacher.department
+          : teacher.department?.nameUz || teacher.department?.name || ""
+      ).toLowerCase()
+      const spec = (teacher.specialization || "").toLowerCase()
+      return (
+        name.includes(query) ||
+        title.includes(query) ||
+        spec.includes(query) ||
+        dept.includes(query)
+      )
+    })
+  }, [teachers, teacherSearchTerm])
 
   const displayedTeachers = filtered.slice(0, visibleCount)
 
@@ -124,77 +133,112 @@ export default function Teachers({ navigate }) {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 mb-6">O'qituvchilar</h1>
-        <div className="flex gap-3 items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="O'qituvchi izlash..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border-2 border-blue-500 rounded-full focus:outline-none focus:border-blue-600"
-            />
+        <h1 className="text-3xl font-bold text-slate-900 mb-6">O&apos;qituvchilar Ro&apos;yxati</h1>
+
+        {/* Search Input */}
+        <div className="mb-6">
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <input
+                type="text"
+                value={teacherSearchQuery}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setTeacherSearchQuery(val)
+                  if (!val.trim()) {
+                    setTeacherSearchTerm("")
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    setTeacherSearchTerm(teacherSearchQuery)
+                  }
+                }}
+                placeholder="O'qituvchi qidirish..."
+                className="w-full pl-10 pr-4 py-2.5 border-2 border-blue-500 rounded-full focus:outline-none focus:border-blue-600 transition-colors duration-300 bg-white text-slate-900 placeholder:text-slate-400"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setTeacherSearchTerm(teacherSearchQuery)}
+              className="px-6 py-2.5 border-2 border-blue-500 text-blue-500 rounded-full font-medium hover:bg-blue-500 hover:text-white transition-all duration-200 whitespace-nowrap"
+            >
+              Qidirish
+            </button>
           </div>
-          <button className="px-8 py-3 border-2 border-blue-600 text-blue-600 rounded-full hover:bg-blue-600 
-          hover:text-white transition-colors whitespace-nowrap">
-            Qidirish
-          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {displayedTeachers.map((teacher) => {
-          const teacherReviews = reviews.filter((r) => {
-            const rid = r.teacherId ?? r.teacher_id ?? r.teacher?.id
-            return rid != null && Number(rid) === Number(teacher.id)
-          })
-          const avgRating =
-            teacherReviews.length > 0
-              ? (
-                  teacherReviews.reduce((sum, r) => sum + (r.scores?.overall ?? r.rating ?? 0), 0) / teacherReviews.length
-                ).toFixed(1)
-              : "0.0"
-
-          return (
-          
-            <div
-              key={teacher.id}
-              onClick={() => navigate("teacher", teacher.id)}
-              className="card cursor-pointer hover:shadow-lg transition-all space-y-3"
+      {filtered.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-xl border border-slate-200 p-8 shadow-sm">
+          <p className="text-slate-600 text-lg">Hech qanday o&apos;qituvchi topilmadi</p>
+          {teacherSearchTerm && (
+            <button
+              type="button"
+              onClick={() => {
+                setTeacherSearchQuery("")
+                setTeacherSearchTerm("")
+              }}
+              className="mt-4 px-5 py-2 text-sm bg-blue-50 text-blue-600 font-medium rounded-lg hover:bg-blue-100 transition-colors"
             >
-              <div className="w-full h-56 rounded-lg mb-4 overflow-hidden bg-slate-100 flex items-center justify-center">
-                <img
-                  src={getTeacherImageSrc(teacher)}
-                  
-                  alt={getTeacherDisplayName(teacher)}
-                  className="w-full h-full object-contain"
-                  loading="lazy"
-                />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">{getTeacherDisplayName(teacher)}</h2>
-                <p className="text-sm text-blue-600">{getTeacherDisplayTitle(teacher)}</p>
-              </div>
-              <p className="text-xs text-slate-500">Kafedra: {teacher.department}</p>
-              {teacher.experience && <p className="text-xs text-slate-500">Tajriba: {teacher.experience}</p>}
-              <div className="flex justify-between items-center pt-2">
-                <span className="text-sm text-slate-500">{teacherReviews.length} ta sharh</span>
-                <div className="flex items-center gap-1.5">
-                  <StarRating rating={avgRating} size="sm" />
-                  <span className="font-semibold text-yellow-500 text-sm">{avgRating}/5</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="w-full mt-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              Barcha o&apos;qituvchilarni ko&apos;rsatish
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {displayedTeachers.map((teacher) => {
+            const teacherReviews = reviews.filter((r) => {
+              const rid = r.teacherId ?? r.teacher_id ?? r.teacher?.id
+              return rid != null && Number(rid) === Number(teacher.id)
+            })
+            const avgRating =
+              teacherReviews.length > 0
+                ? (
+                    teacherReviews.reduce((sum, r) => sum + (r.scores?.overall ?? r.rating ?? 0), 0) / teacherReviews.length
+                  ).toFixed(1)
+                : "0.0"
+
+            return (
+              <div
+                key={teacher.id}
+                onClick={() => navigate("teacher", teacher.id)}
+                className="card cursor-pointer hover:shadow-lg transition-all space-y-3"
               >
-                Batafsil va baxolash
-              </button>
-            </div>
-          )
-        })}
-      </div>
+                <div className="w-full h-56 rounded-lg mb-4 overflow-hidden bg-slate-100 flex items-center justify-center">
+                  <img
+                    src={getTeacherImageSrc(teacher)}
+                    alt={getTeacherDisplayName(teacher)}
+                    className="w-full h-full object-contain"
+                    loading="lazy"
+                  />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">{getTeacherDisplayName(teacher)}</h2>
+                  <p className="text-sm text-blue-600">{getTeacherDisplayTitle(teacher)}</p>
+                </div>
+                <p className="text-xs text-slate-500">Kafedra: {teacher.department}</p>
+                {teacher.experience && <p className="text-xs text-slate-500">Tajriba: {teacher.experience}</p>}
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-sm text-slate-500">{teacherReviews.length} ta sharh</span>
+                  <div className="flex items-center gap-1.5">
+                    <StarRating rating={avgRating} size="sm" />
+                    <span className="font-semibold text-yellow-500 text-sm">{avgRating}/5</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="w-full mt-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Batafsil va baxolash
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {filtered.length > PAGE_SIZE && visibleCount < filtered.length && (
         <div className="flex justify-center mt-8">
