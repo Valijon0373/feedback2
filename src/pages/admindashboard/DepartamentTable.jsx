@@ -2,6 +2,7 @@ import { Eye, Pencil, Plus, Trash2, X, Search } from "lucide-react"
 
 export default function DepartamentTable({
   isDarkMode,
+  isLimitedUser = false,
   faculties,
   departments,
   departmentForm,
@@ -309,16 +310,18 @@ export default function DepartamentTable({
             >
               Kafedralar Ro&apos;yxati
             </h2>
-            <button
-              onClick={() => {
-                setDepartmentFormState({ nameUz: "", nameRu: "", facultyId: "" })
-                setShowDepartmentForm(true)
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-[#00d4aa] text-white rounded-xl font-medium hover:bg-[#00b894] transition-all duration-200 shadow-md hover:shadow-lg"
-            >
-              <Plus className="w-4 h-4" />
-              Qo&apos;shish
-            </button>
+            {!isLimitedUser && (
+              <button
+                onClick={() => {
+                  setDepartmentFormState({ nameUz: "", nameRu: "", facultyId: "" })
+                  setShowDepartmentForm(true)
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-[#00d4aa] text-white rounded-xl font-medium hover:bg-[#00b894] transition-all duration-200 shadow-md hover:shadow-lg"
+              >
+                <Plus className="w-4 h-4" />
+                Qo&apos;shish
+              </button>
+            )}
           </div>
 
           {/* Search Input */}
@@ -414,20 +417,24 @@ export default function DepartamentTable({
                         <Eye className="w-4 h-4" />
                         <span className="text-sm">Ko&apos;rish</span>
                       </button>
-                      <button
-                        onClick={() => handleEditDepartment(department)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-200 text-green-500 border-green-500/30 hover:bg-green-500/10"
-                      >
-                        <Pencil className="w-4 h-4" />
-                        <span className="text-sm">Tahrirlash</span>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteDepartment(department.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-200 text-red-500 border-red-500/30 hover:bg-red-500/10"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span className="text-sm">O&apos;chirish</span>
-                      </button>
+                      {!isLimitedUser && (
+                        <>
+                          <button
+                            onClick={() => handleEditDepartment(department)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-200 text-green-500 border-green-500/30 hover:bg-green-500/10"
+                          >
+                            <Pencil className="w-4 h-4" />
+                            <span className="text-sm">Tahrirlash</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDepartment(department.id)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-200 text-red-500 border-red-500/30 hover:bg-red-500/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span className="text-sm">O&apos;chirish</span>
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 )

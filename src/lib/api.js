@@ -307,10 +307,24 @@ const normalizeTeacherPublic = (t, { departmentIdByNameUz = new Map(), defaultDe
 export const facultiesApi = {
   getAll: async () => {
     try {
-      const data = await apiFetch(hasAdminToken() ? "/api/faculties" : "/api/view/faculties", {
-        method: "GET",
-        auth: hasAdminToken(),
-      })
+      let data
+      try {
+        data = await apiFetch(hasAdminToken() ? "/api/faculties" : "/api/view/faculties", {
+          method: "GET",
+          auth: hasAdminToken(),
+        })
+      } catch (e) {
+        const status = e?.status
+        if (hasAdminToken() && (status === 401 || status === 403 || status === 404)) {
+          data = await apiFetch("/api/view/faculties", {
+            method: "GET",
+            auth: false,
+            credentials: "omit",
+          })
+        } else {
+          throw e
+        }
+      }
       const list = unwrapList(data)
       if (list) return list
       // Some backends return {faculties: []}
@@ -329,8 +343,17 @@ export const facultiesApi = {
         return all.find((f) => Number(f.id) === Number(id)) || null
       }
 
-      const data = await apiFetch(`/api/faculties/${id}`, { method: "GET", auth: true })
-      return unwrapOne(data) || null
+      try {
+        const data = await apiFetch(`/api/faculties/${id}`, { method: "GET", auth: true })
+        return unwrapOne(data) || null
+      } catch (e) {
+        const status = e?.status
+        if (status === 401 || status === 403 || status === 404) {
+          const all = await facultiesApi.getAll()
+          return all.find((f) => Number(f.id) === Number(id)) || null
+        }
+        throw e
+      }
     } catch {
       return state.faculties.find((f) => Number(f.id) === Number(id)) || null
     }
@@ -406,7 +429,7 @@ export const departmentsApi = {
     try {
       // Public pages should use /api/view/departments (no Bearer).
       // Admin pages should use /api/departments (Bearer required).
-      // Some deployments may restrict /api/view/* or disable it; in that case, if we have a token, retry protected endpoint.
+      // If user lacks permission (e.g. ROLE_USER 403 Forbidden), fallback to public /api/view/departments.
       const token = getAdminAccessToken()
       const hasToken = !!(token && String(token).trim())
 
@@ -418,9 +441,9 @@ export const departmentsApi = {
         })
       } catch (e) {
         const status = e?.status
-        const canRetryProtected = (status === 401 || status === 403 || status === 404) && hasToken
-        if (!canRetryProtected) throw e
-        data = await apiFetch("/api/departments", { method: "GET", auth: true })
+        const canRetryPublic = hasToken && (status === 401 || status === 403 || status === 404)
+        if (!canRetryPublic) throw e
+        data = await apiFetch("/api/view/departments", { method: "GET", auth: false, credentials: "omit" })
       }
       const list = unwrapList(data)
       if (list) return list
@@ -439,8 +462,17 @@ export const departmentsApi = {
         return all.find((d) => Number(d.id) === Number(id)) || null
       }
 
-      const data = await apiFetch(`/api/departments/${id}`, { method: "GET", auth: true })
-      return unwrapOne(data) || null
+      try {
+        const data = await apiFetch(`/api/departments/${id}`, { method: "GET", auth: true })
+        return unwrapOne(data) || null
+      } catch (e) {
+        const status = e?.status
+        if (status === 401 || status === 403 || status === 404) {
+          const all = await departmentsApi.getAll()
+          return all.find((d) => Number(d.id) === Number(id)) || null
+        }
+        throw e
+      }
     } catch {
       return state.departments.find((d) => Number(d.id) === Number(id)) || null
     }
@@ -449,12 +481,26 @@ export const departmentsApi = {
   getByFacultyId: async (facultyId) => {
     const local = state.departments.filter((d) => Number(d.facultyId) === Number(facultyId))
     try {
-      const data = await apiFetch(
-        hasAdminToken()
-          ? `/api/departments/faculty/${facultyId}`
-          : `/api/view/faculties/${facultyId}/departments`,
-        { method: "GET", auth: hasAdminToken() },
-      )
+      let data
+      try {
+        data = await apiFetch(
+          hasAdminToken()
+            ? `/api/departments/faculty/${facultyId}`
+            : `/api/view/faculties/${facultyId}/departments`,
+          { method: "GET", auth: hasAdminToken() },
+        )
+      } catch (e) {
+        const status = e?.status
+        if (hasAdminToken() && (status === 401 || status === 403 || status === 404)) {
+          data = await apiFetch(`/api/view/faculties/${facultyId}/departments`, {
+            method: "GET",
+            auth: false,
+            credentials: "omit",
+          })
+        } else {
+          throw e
+        }
+      }
       const list = unwrapList(data)
       if (list) return list
       if (Array.isArray(data?.departments)) return data.departments

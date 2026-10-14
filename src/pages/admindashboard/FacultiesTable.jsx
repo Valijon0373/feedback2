@@ -2,6 +2,7 @@ import { Eye, Pencil, Plus, Trash2, X } from "lucide-react"
 
 export default function FacultiesTable({
   isDarkMode,
+  isLimitedUser = false,
   faculties,
   facultyForm,
   editingFacultyId,
@@ -214,17 +215,19 @@ export default function FacultiesTable({
             >
               Mavjud Fakultetlar
             </h2>
-            <button
-              onClick={() => {
-                setEditingFacultyId(null)
-                setFacultyForm({ nameUz: "", nameRu: "" })
-                setShowFacultyForm(true)
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-[#00d4aa] text-white rounded-xl font-medium hover:bg-[#00b894] transition-all duration-200 shadow-md hover:shadow-lg"
-            >
-              <Plus className="w-4 h-4" />
-              Qo&apos;shish
-            </button>
+            {!isLimitedUser && (
+              <button
+                onClick={() => {
+                  setEditingFacultyId(null)
+                  setFacultyForm({ nameUz: "", nameRu: "" })
+                  setShowFacultyForm(true)
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-[#00d4aa] text-white rounded-xl font-medium hover:bg-[#00b894] transition-all duration-200 shadow-md hover:shadow-lg"
+              >
+                <Plus className="w-4 h-4" />
+                Qo&apos;shish
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-1 gap-3">
             {faculties.map((faculty) => (
@@ -254,20 +257,24 @@ export default function FacultiesTable({
                     <Eye className="w-4 h-4" />
                     <span className="text-sm">Ko&apos;rish</span>
                   </button>
-                  <button
-                    onClick={() => handleEditFaculty(faculty)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-200 text-green-500 border-green-500/30 hover:bg-green-500/10"
-                  >
-                    <Pencil className="w-4 h-4" />
-                    <span className="text-sm">Tahrirlash</span>
-                  </button>
-                  <button
-                    onClick={() => handleDeleteFaculty(faculty.id)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-200 text-red-500 border-red-500/30 hover:bg-red-500/10"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span className="text-sm">O&apos;chirish</span>
-                  </button>
+                  {!isLimitedUser && (
+                    <>
+                      <button
+                        onClick={() => handleEditFaculty(faculty)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-200 text-green-500 border-green-500/30 hover:bg-green-500/10"
+                      >
+                        <Pencil className="w-4 h-4" />
+                        <span className="text-sm">Tahrirlash</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteFaculty(faculty.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-200 text-red-500 border-red-500/30 hover:bg-red-500/10"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span className="text-sm">O&apos;chirish</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}

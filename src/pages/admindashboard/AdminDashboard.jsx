@@ -915,13 +915,13 @@ export default function AdminDashboard({ onLogout, navigate }) {
   ]
 
   const allowedNavIds = isLimitedUser
-    ? ["dashboard", "doctors", "about"]
+    ? ["dashboard", "categories", "departments", "doctors", "about"]
     : ["dashboard", "categories", "departments", "doctors", "news", "about"]
 
   const navItems = baseNavItems.filter((item) => allowedNavIds.includes(item.id))
 
   const handleNavClick = (itemId) => {
-    if (isLimitedUser && !["dashboard", "doctors", "about"].includes(itemId)) {
+    if (isLimitedUser && !allowedNavIds.includes(itemId)) {
       setActiveNavItem("dashboard")
       setActiveTab("faculties")
       return
@@ -1353,6 +1353,7 @@ export default function AdminDashboard({ onLogout, navigate }) {
             {activeNavItem === "categories" && (
               <FacultiesTable
                 isDarkMode={isDarkMode}
+                isLimitedUser={isLimitedUser}
                 faculties={faculties}
                 facultyForm={facultyForm}
                 editingFacultyId={editingFacultyId}
@@ -1375,6 +1376,7 @@ export default function AdminDashboard({ onLogout, navigate }) {
             {activeNavItem === "departments" && (
               <DepartamentTable
                 isDarkMode={isDarkMode}
+                isLimitedUser={isLimitedUser}
                 faculties={faculties}
                 departments={departments}
                 departmentForm={departmentForm}
